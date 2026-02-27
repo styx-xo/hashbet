@@ -2,7 +2,6 @@ const SIZE = 180;
 const R = 72; // coin radius
 
 export function LogoFlip({ size = SIZE }: { size?: number }) {
-  const scale = size / SIZE;
   return (
     <div style={{ width: size, height: size, perspective: 600 }}>
       <div

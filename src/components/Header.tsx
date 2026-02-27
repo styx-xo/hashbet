@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Wifi, WifiOff, HelpCircle, ArrowLeft } from 'lucide-react';
 
 interface Props {
-  gameName: string;
+  gameName?: string;
   isLanding: boolean;
   blockHeight: number | null;
   wsConnected: boolean;
@@ -10,18 +10,7 @@ interface Props {
   onFaq: () => void;
 }
 
-function GameLogo({ name }: { name: string }) {
-  // Split on "HASH" prefix — always HASH + suffix
-  const suffix = name.replace('HASH', '');
-  return (
-    <span className="font-display font-black text-xl tracking-widest">
-      <span className="text-low" style={{ textShadow: '0 0 12px rgba(0,229,255,0.6)' }}>HASH</span>
-      <span className="text-high" style={{ textShadow: '0 0 12px rgba(191,0,255,0.6)' }}>{suffix}</span>
-    </span>
-  );
-}
-
-export function Header({ gameName, isLanding, blockHeight, wsConnected, error, onFaq }: Props) {
+export function Header({ isLanding, blockHeight, wsConnected, error, onFaq }: Props) {
   return (
     <header
       className="sticky top-0 z-50 border-b border-dark-border"

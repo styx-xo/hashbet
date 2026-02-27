@@ -15,8 +15,6 @@ interface Props {
   onDisconnect: () => void;
 }
 
-const fmtBtc = (sats: number) => (sats / 100_000_000).toFixed(4);
-
 export function HashPotPage({ walletConnected, walletAddress, onConnect, onDisconnect }: Props) {
   const { round, history, userBet, placeBet, lastBlockTimestamp, blocksLoading } = useHashPotState();
   const btcPrice = useBtcPrice();
