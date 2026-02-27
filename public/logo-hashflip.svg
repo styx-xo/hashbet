@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280" width="280" height="280">
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <linearGradient id="teal-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00e5ff"/>
+      <stop offset="100%" stop-color="#0090a0"/>
+    </linearGradient>
+    <linearGradient id="purple-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d040ff"/>
+      <stop offset="100%" stop-color="#bf00ff"/>
+    </linearGradient>
+    <linearGradient id="coin-fill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#bf00ff" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Shadow/reflection coin (back of flip) — purple tint, offset -->
+  <ellipse cx="148" cy="158" rx="68" ry="72" fill="none" stroke="#bf00ff" stroke-width="2" opacity="0.2" filter="url(#soft)"/>
+
+  <!-- Main coin — front face -->
+  <ellipse cx="132" cy="128" rx="72" ry="78" fill="url(#coin-fill)" stroke="url(#teal-grad)" stroke-width="3" filter="url(#glow)"/>
+
+  <!-- Coin inner bevel -->
+  <ellipse cx="132" cy="128" rx="58" ry="63" fill="none" stroke="#00e5ff" stroke-width="1.5" opacity="0.3"/>
+
+  <!-- Coin cross pattern — gives it a "two sides" feel -->
+  <line x1="132" y1="65" x2="132" y2="191" stroke="#00e5ff" stroke-width="0.8" opacity="0.15"/>
+  <line x1="60" y1="128" x2="204" y2="128" stroke="#00e5ff" stroke-width="0.8" opacity="0.15"/>
+
+  <!-- Arrow UP — teal, clean, bold -->
+  <g filter="url(#soft)">
+    <polygon points="132,72 116,104 126,104 126,120 138,120 138,104 148,104" fill="#00e5ff" opacity="0.85"/>
+  </g>
+
+  <!-- Arrow DOWN — purple, clean, bold -->
+  <g filter="url(#soft)">
+    <polygon points="132,184 116,152 126,152 126,136 138,136 138,152 148,152" fill="#bf00ff" opacity="0.85"/>
+  </g>
+
+  <!-- Flip arc lines — shows the coin is in motion -->
+  <path d="M195 60 C220 80 225 110 218 135" stroke="#00e5ff" stroke-width="2" fill="none" opacity="0.35" stroke-linecap="round"/>
+  <path d="M200 68 C222 86 226 112 220 132" stroke="#00e5ff" stroke-width="1" fill="none" opacity="0.2" stroke-linecap="round"/>
+
+  <path d="M68 195 C50 178 44 148 50 125" stroke="#bf00ff" stroke-width="2" fill="none" opacity="0.35" stroke-linecap="round"/>
+  <path d="M62 190 C46 174 41 150 46 130" stroke="#bf00ff" stroke-width="1" fill="none" opacity="0.2" stroke-linecap="round"/>
+
+  <!-- Sparkle accents -->
+  <circle cx="210" cy="55" r="3" fill="#00e5ff" opacity="0.6" filter="url(#soft)"/>
+  <circle cx="55" cy="205" r="3" fill="#bf00ff" opacity="0.6" filter="url(#soft)"/>
+</svg>
