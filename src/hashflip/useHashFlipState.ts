@@ -61,13 +61,13 @@ export function useHashFlipState() {
 
     try {
       const currentRoundResult = await contract._getCurrentRound();
-      if ('error' in currentRoundResult) return;
+      if (currentRoundResult.revert || !currentRoundResult.properties) return;
 
       const roundId = currentRoundResult.properties.roundId;
-      if (roundId === 0n) return; // no rounds yet
+      if (!roundId || roundId === 0n) return; // no rounds yet
 
       const roundDataResult = await contract._getRound(roundId);
-      if ('error' in roundDataResult) return;
+      if (roundDataResult.revert || !roundDataResult.properties) return;
 
       // Parse round data bytes:
       // targetBlock(u64) | currentBlock(u64) | poolLow(u256) | poolHigh(u256) | phase(u8) | winner(u8) | hashByte(u8)
@@ -112,7 +112,20 @@ export function useHashFlipState() {
     initialized.current = true;
 
     if (contractsDeployed) {
-      pollContractState();
+      // Try contract, fall back to local mode if no rounds exist
+      pollContractState().then(() => {
+        if (!roundRef.current) {
+          // No rounds on contract yet — use local mode
+          setRound({
+            id: nextId.current,
+            targetBlock: tip.height + 1,
+            currentBlock: tip.height,
+            poolLow: 0,
+            poolHigh: 0,
+            phase: 'BETTING',
+          });
+        }
+      });
     } else {
       setRound({
         id: nextId.current,
@@ -208,8 +221,8 @@ export function useHashFlipState() {
         const sideNum = side === 'LOW' ? 0 : 1;
         const simulation = await contract._bet(BigInt(r.id), sideNum, BigInt(sats));
 
-        if ('error' in simulation || simulation.revert) {
-          console.error('Bet simulation failed:', 'error' in simulation ? simulation.error : simulation.revert);
+        if (simulation.revert) {
+          console.error('Bet simulation failed:', simulation.revert);
           setTxPending(false);
           return;
         }

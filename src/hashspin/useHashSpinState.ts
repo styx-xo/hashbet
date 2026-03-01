@@ -47,25 +47,25 @@ export function useHashSpinState() {
 
     try {
       const currentRoundResult = await contract._getCurrentRound();
-      if ('error' in currentRoundResult) return;
+      if (currentRoundResult.revert || !currentRoundResult.properties) return;
       const roundId = currentRoundResult.properties.roundId;
-      if (roundId === 0n) return;
+      if (!roundId || roundId === 0n) return;
 
       // Fetch all 16 slot pools
       const pools: number[] = [];
       for (let i = 0; i < 16; i++) {
-        const poolResult = await contract._getSlotPool(roundId, i);
-        if ('error' in poolResult) {
+        try {
+          const poolResult = await contract._getSlotPool(roundId, i);
+          pools.push(poolResult.revert ? 0 : Number(poolResult.properties.amount));
+        } catch {
           pools.push(0);
-        } else {
-          pools.push(Number(poolResult.properties.amount));
         }
       }
 
       const totalPool = pools.reduce((a, b) => a + b, 0);
 
       const roundDataResult = await contract._getRound(roundId);
-      if ('error' in roundDataResult) return;
+      if (roundDataResult.revert || !roundDataResult.properties) return;
       const data = roundDataResult.properties.data;
       if (!data || data.length < 8) return;
 
@@ -96,7 +96,18 @@ export function useHashSpinState() {
     initialized.current = true;
 
     if (contractsDeployed) {
-      pollContractState();
+      pollContractState().then(() => {
+        if (!roundRef.current) {
+          setRound({
+            id: nextId.current,
+            targetBlock: tip.height + 1,
+            currentBlock: tip.height,
+            slotPools: new Array(16).fill(0),
+            totalPool: 0,
+            phase: 'BETTING',
+          });
+        }
+      });
     } else {
       setRound({
         id: nextId.current,
@@ -189,8 +200,8 @@ export function useHashSpinState() {
       setTxPending(true);
       try {
         const simulation = await contract._bet(BigInt(r.id), slot, BigInt(sats));
-        if ('error' in simulation || simulation.revert) {
-          console.error('Bet simulation failed:', 'error' in simulation ? simulation.error : simulation.revert);
+        if (simulation.revert) {
+          console.error('Bet simulation failed:', simulation.revert);
           setTxPending(false);
           return;
         }

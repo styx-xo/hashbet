@@ -47,32 +47,35 @@ export function useHashPotState() {
 
     try {
       const currentRoundResult = await contract._getCurrentRound();
-      if ('error' in currentRoundResult) return;
+      if (currentRoundResult.revert || !currentRoundResult.properties) return;
       const roundId = currentRoundResult.properties.roundId;
-      if (roundId === 0n) return;
+      if (!roundId || roundId === 0n) return;
 
       // Batch query: 8 batches of 32 slots each
       const pools: number[] = new Array(256).fill(0);
       for (let batch = 0; batch < 8; batch++) {
         const start = batch * 32;
-        const batchResult = await contract._getSlotPoolBatch(roundId, start, 32);
-        if (!('error' in batchResult)) {
-          const data = batchResult.properties.data;
-          for (let i = 0; i < 32; i++) {
-            // Each slot is a u256 (32 bytes), read first 8 bytes as u64 (little-endian)
-            const offset = i * 32;
-            if (offset + 8 <= data.length) {
-              const view = new DataView(data.buffer, data.byteOffset + offset, 8);
-              pools[start + i] = Number(view.getBigUint64(0, true));
+        try {
+          const batchResult = await contract._getSlotPoolBatch(roundId, start, 32);
+          if (!batchResult.revert && batchResult.properties) {
+            const data = batchResult.properties.data;
+            for (let i = 0; i < 32; i++) {
+              const offset = i * 32;
+              if (offset + 8 <= data.length) {
+                const view = new DataView(data.buffer, data.byteOffset + offset, 8);
+                pools[start + i] = Number(view.getBigUint64(0, true));
+              }
             }
           }
+        } catch {
+          // skip failed batch
         }
       }
 
       const totalPool = pools.reduce((a, b) => a + b, 0);
 
       const roundDataResult = await contract._getRound(roundId);
-      if ('error' in roundDataResult) return;
+      if (roundDataResult.revert || !roundDataResult.properties) return;
       const data = roundDataResult.properties.data;
       if (!data || data.length < 8) return;
 
@@ -104,7 +107,18 @@ export function useHashPotState() {
     initialized.current = true;
 
     if (contractsDeployed) {
-      pollContractState();
+      pollContractState().then(() => {
+        if (!roundRef.current) {
+          setRound({
+            id: nextId.current,
+            targetBlock: tip.height + 1,
+            currentBlock: tip.height,
+            slotPools: new Array(256).fill(0),
+            totalPool: 0,
+            phase: 'BETTING',
+          });
+        }
+      });
     } else {
       setRound({
         id: nextId.current,
@@ -197,8 +211,8 @@ export function useHashPotState() {
       setTxPending(true);
       try {
         const simulation = await contract._bet(BigInt(r.id), slot, BigInt(sats));
-        if ('error' in simulation || simulation.revert) {
-          console.error('Bet simulation failed:', 'error' in simulation ? simulation.error : simulation.revert);
+        if (simulation.revert) {
+          console.error('Bet simulation failed:', simulation.revert);
           setTxPending(false);
           return;
         }
