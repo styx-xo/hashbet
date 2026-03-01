@@ -23,7 +23,7 @@ const games: {
     borderColor: 'rgba(0,229,255,0.3)',
     hoverBorder: 'rgba(0,229,255,0.6)',
     glowColor: 'rgba(0,229,255,0.15)',
-    icon: <LogoFlip size={140} />,
+    icon: <LogoFlip size={100} />,
   },
   {
     name: 'HASHSPIN',
@@ -33,7 +33,7 @@ const games: {
     borderColor: 'rgba(191,0,255,0.3)',
     hoverBorder: 'rgba(191,0,255,0.6)',
     glowColor: 'rgba(191,0,255,0.15)',
-    icon: <LogoSpin size={140} />,
+    icon: <LogoSpin size={100} />,
   },
   {
     name: 'HASHPOT',
@@ -43,7 +43,7 @@ const games: {
     borderColor: 'rgba(245,158,11,0.3)',
     hoverBorder: 'rgba(245,158,11,0.6)',
     glowColor: 'rgba(245,158,11,0.15)',
-    icon: <LogoPot size={140} />,
+    icon: <LogoPot size={100} />,
   },
 ];
 
@@ -60,9 +60,9 @@ export function LandingPage() {
             top: -50,
             left: '50%',
             transform: 'translateX(-50%)',
-            width: 700,
-            height: 300,
-            background: 'radial-gradient(ellipse, rgba(0,229,255,0.18) 0%, rgba(191,0,255,0.1) 40%, transparent 72%)',
+            width: 500,
+            height: 220,
+            background: 'radial-gradient(ellipse, rgba(0,229,255,0.1) 0%, rgba(191,0,255,0.06) 40%, transparent 72%)',
             pointerEvents: 'none',
           }}
         />
@@ -71,7 +71,7 @@ export function LandingPage() {
         <motion.h1
           className="font-display font-black tracking-widest animate-flicker animate-neon-breathe"
           style={{
-            fontSize: 'clamp(4.5rem, 12vw, 8.5rem)',
+            fontSize: 'clamp(3.5rem, 10vw, 6.5rem)',
             lineHeight: 1,
             letterSpacing: '0.22em',
             position: 'relative',
@@ -80,10 +80,10 @@ export function LandingPage() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
-          <span style={{ color: '#00e5ff', textShadow: '0 0 50px rgba(0,229,255,0.8), 0 0 100px rgba(0,229,255,0.35), 0 0 160px rgba(0,229,255,0.12)' }}>
+          <span style={{ color: '#00e5ff', textShadow: '0 0 30px rgba(0,229,255,0.5), 0 0 60px rgba(0,229,255,0.2)' }}>
             HASH
           </span>
-          <span style={{ color: '#bf00ff', textShadow: '0 0 50px rgba(191,0,255,0.8), 0 0 100px rgba(191,0,255,0.35), 0 0 160px rgba(191,0,255,0.12)' }}>
+          <span style={{ color: '#bf00ff', textShadow: '0 0 30px rgba(191,0,255,0.5), 0 0 60px rgba(191,0,255,0.2)' }}>
             BET
           </span>
           {/* Shine sweep — clipped to letter shapes via background-clip:text */}
@@ -175,7 +175,7 @@ export function LandingPage() {
                 style={{
                   background: `linear-gradient(170deg, ${game.dimBg} 0%, #06060f 60%)`,
                   borderColor: game.borderColor,
-                  padding: '44px 32px 36px',
+                  padding: '32px 24px 28px',
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
@@ -209,7 +209,7 @@ export function LandingPage() {
                 <div
                   className="game-card-name font-display font-black tracking-widest"
                   style={{
-                    fontSize: '2.2rem',
+                    fontSize: '1.8rem',
                     lineHeight: 1,
                     color: game.color,
                     textShadow: `0 0 28px ${game.color}70, 0 0 56px ${game.color}30`,
@@ -220,7 +220,7 @@ export function LandingPage() {
 
                 {/* Play button */}
                 <div
-                  className="font-display font-bold tracking-widest w-full rounded-xl border py-4"
+                  className="font-display font-bold tracking-widest w-full rounded-xl border py-3"
                   style={{
                     fontSize: '1rem',
                     borderColor: `${game.color}45`,

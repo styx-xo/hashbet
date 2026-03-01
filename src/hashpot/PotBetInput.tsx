@@ -4,9 +4,6 @@ import { BYTE_LABELS, byteColor } from './types';
 
 const QUICK = ['0.001', '0.005', '0.01', '0.05'];
 
-const usd = (sats: number, price: number) =>
-  '$' + Math.round((sats / 100_000_000) * price).toLocaleString();
-
 interface Props {
   value: string;
   onChange: (v: string) => void;
@@ -18,10 +15,9 @@ interface Props {
   compact?: boolean;
 }
 
-export function PotBetInput({ value, onChange, onBet, selectedSlot, userBet, disabled, btcPrice, compact }: Props) {
+export function PotBetInput({ value, onChange, onBet, selectedSlot, userBet, disabled, compact }: Props) {
   const amount = parseFloat(value) || 0;
   const isValid = amount >= 0.0001 && selectedSlot !== null;
-  const amountSats = Math.round(amount * 100_000_000);
 
   const slotCol = selectedSlot !== null ? byteColor(selectedSlot) : '#3a4060';
 
@@ -57,31 +53,8 @@ export function PotBetInput({ value, onChange, onBet, selectedSlot, userBet, dis
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
           >
-            {/* Label + selected byte */}
-            <div className="flex flex-col items-center gap-1">
-              <span
-                className="font-display font-black tracking-widest"
-                style={{
-                  fontSize: '1rem',
-                  background: 'linear-gradient(90deg, #f59e0b, #ff6b00)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                PLACE YOUR BET
-              </span>
-              {selectedSlot !== null && (
-                <span
-                  className="font-display font-black"
-                  style={{ fontSize: '1rem', color: slotCol, textShadow: `0 0 10px ${slotCol}66` }}
-                >
-                  0x{BYTE_LABELS[selectedSlot]}
-                </span>
-              )}
-            </div>
-
             {/* Input row */}
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-2 items-center">
               <div className="relative flex-1">
                 <input
                   type="number"
@@ -91,56 +64,42 @@ export function PotBetInput({ value, onChange, onBet, selectedSlot, userBet, dis
                   min="0.0001"
                   step="0.001"
                   className="input-neon text-center"
-                  style={{ padding: '12px 50px 12px 14px', fontSize: '1.15rem', fontWeight: 700 }}
+                  style={{ padding: '8px 40px 8px 10px', fontSize: '0.95rem', fontWeight: 700 }}
                   placeholder="0.001"
                 />
-                <span
-                  className="absolute right-3 top-1/2 -translate-y-1/2 font-mono font-bold"
-                  style={{ color: '#3a4060', fontSize: '0.8rem' }}
-                >
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 font-mono font-bold" style={{ color: '#3a4060', fontSize: '0.7rem' }}>
                   BTC
                 </span>
               </div>
-
-              {/* Bet button */}
-              <motion.button
-                className="btn"
-                style={{
-                  padding: '12px 20px',
-                  fontSize: '0.85rem',
-                  whiteSpace: 'nowrap',
-                  background: selectedSlot !== null
-                    ? 'linear-gradient(135deg, #f59e0b 0%, #ff6b00 100%)'
-                    : 'linear-gradient(135deg, #1a1a30 0%, #0c0c1e 100%)',
-                  border: `1px solid ${selectedSlot !== null ? '#f59e0b' : '#2d3270'}`,
-                  color: selectedSlot !== null ? '#06060f' : '#3a4060',
-                  fontWeight: selectedSlot !== null ? 800 : 600,
-                  boxShadow: selectedSlot !== null ? '0 0 18px rgba(245,158,11,0.4)' : 'none',
-                }}
-                onClick={onBet}
-                disabled={disabled || !isValid}
-                whileHover={isValid ? { scale: 1.03 } : undefined}
-                whileTap={isValid ? { scale: 0.96 } : undefined}
-              >
-                {selectedSlot !== null ? 'BET' : 'SELECT'}
-              </motion.button>
-            </div>
-
-            {/* Quick amounts + USD */}
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex gap-2">
+              <div className="flex gap-1">
                 {QUICK.map(v => (
-                  <button key={v} onClick={() => onChange(v)} disabled={disabled} className="btn-ghost px-2.5 py-1" style={{ fontSize: '0.7rem' }}>
+                  <button key={v} onClick={() => onChange(v)} disabled={disabled} className="btn-ghost px-2 py-1" style={{ fontSize: '0.6rem' }}>
                     {v}
                   </button>
                 ))}
               </div>
-              {btcPrice && amountSats > 0 && (
-                <span className="font-mono text-xs" style={{ color: '#6872a0' }}>
-                  ≈ {usd(amountSats, btcPrice)}
-                </span>
-              )}
             </div>
+
+            {/* Bet button */}
+            <motion.button
+              className="btn w-full"
+              style={{
+                padding: '10px',
+                fontSize: '0.8rem',
+                background: selectedSlot !== null
+                  ? 'linear-gradient(135deg, #f59e0b 0%, #ff6b00 100%)'
+                  : 'linear-gradient(135deg, #1a1a30 0%, #0c0c1e 100%)',
+                border: `1px solid ${selectedSlot !== null ? '#f59e0b' : '#2d3270'}`,
+                color: selectedSlot !== null ? '#06060f' : '#3a4060',
+                fontWeight: selectedSlot !== null ? 800 : 600,
+              }}
+              onClick={onBet}
+              disabled={disabled || !isValid}
+              whileHover={isValid ? { scale: 1.02 } : undefined}
+              whileTap={isValid ? { scale: 0.97 } : undefined}
+            >
+              {selectedSlot !== null ? `BET ON 0x${BYTE_LABELS[selectedSlot]}` : 'SELECT A BYTE FIRST'}
+            </motion.button>
           </motion.div>
         )}
       </AnimatePresence>

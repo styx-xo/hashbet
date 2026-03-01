@@ -10,12 +10,12 @@ interface Props {
   timerProgress: number;
 }
 
-const SIZE = 660;
+const SIZE = 300;
 const CENTER = SIZE / 2;
-const OUTER_R = SIZE / 2 - 14;
-const INNER_R = OUTER_R - 76;
+const OUTER_R = SIZE / 2 - 8;
+const INNER_R = OUTER_R - 38;
 const LABEL_R = (INNER_R + OUTER_R) / 2;
-const BALL_TRACK_R = (INNER_R + OUTER_R) / 2 + 8;
+const BALL_TRACK_R = (INNER_R + OUTER_R) / 2 + 5;
 const SEGMENT_ANGLE = (2 * Math.PI) / 16;
 const DEG = Math.PI / 180;
 
@@ -122,7 +122,7 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
           animate={{ opacity: 1, scale: 1 }}
           style={{
             position: 'absolute',
-            inset: -20,
+            inset: -12,
             borderRadius: '50%',
             border: `2px solid ${winColor}`,
             boxShadow: `0 0 40px ${winColor}88, 0 0 80px ${winColor}44, inset 0 0 40px ${winColor}22`,
@@ -184,7 +184,7 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
                   key={`pocket-${i}`}
                   cx={pos.x}
                   cy={pos.y}
-                  r={5}
+                  r={3}
                   fill="none"
                   stroke={slotColor(i)}
                   strokeWidth="1"
@@ -241,9 +241,9 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
                 />
                 {isBetSlot && !isWinner && (
                   <circle
-                    cx={polarToXY(CENTER, CENTER, OUTER_R - 14, midAngle).x}
-                    cy={polarToXY(CENTER, CENTER, OUTER_R - 14, midAngle).y}
-                    r={4}
+                    cx={polarToXY(CENTER, CENTER, OUTER_R - 10, midAngle).x}
+                    cy={polarToXY(CENTER, CENTER, OUTER_R - 10, midAngle).y}
+                    r={3}
                     fill={color}
                     style={{ filter: `drop-shadow(0 0 4px ${color})` }}
                   />
@@ -296,7 +296,7 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
               textAnchor="middle"
               dominantBaseline="central"
               fill={isWinner ? '#fff' : isLoser ? '#2a2a40' : color}
-              fontSize={18}
+              fontSize={11}
               fontFamily="'Orbitron', sans-serif"
               fontWeight={700}
               style={{ transition: 'fill 0.3s' }}
@@ -327,24 +327,24 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
         </defs>
         {/* Ball shadow */}
         <circle
-          cx={ballPos.x + 3}
-          cy={ballPos.y + 3}
-          r={14}
+          cx={ballPos.x + 2}
+          cy={ballPos.y + 2}
+          r={9}
           fill="rgba(0,0,0,0.35)"
         />
         {/* Ball */}
         <circle
           cx={ballPos.x}
           cy={ballPos.y}
-          r={13}
+          r={8}
           fill="url(#ball-shine)"
           filter="url(#ball-glow-big)"
         />
         {/* Ball highlight */}
         <circle
-          cx={ballPos.x - 3}
-          cy={ballPos.y - 3}
-          r={5}
+          cx={ballPos.x - 2}
+          cy={ballPos.y - 2}
+          r={3}
           fill="rgba(255,255,255,0.7)"
         />
         {/* Ball trail */}
@@ -358,7 +358,7 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
                   key={n}
                   cx={tp.x}
                   cy={tp.y}
-                  r={12 - n * 3}
+                  r={7 - n * 2}
                   fill="#00e5ff"
                   opacity={0.4 - n * 0.12}
                 />
@@ -372,10 +372,10 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
       <div
         style={{
           position: 'absolute',
-          top: CENTER - INNER_R + 18,
-          left: CENTER - INNER_R + 18,
-          width: (INNER_R - 18) * 2,
-          height: (INNER_R - 18) * 2,
+          top: CENTER - INNER_R + 10,
+          left: CENTER - INNER_R + 10,
+          width: (INNER_R - 10) * 2,
+          height: (INNER_R - 10) * 2,
           borderRadius: '50%',
           background: isSettledWinner
             ? `radial-gradient(circle, ${winColor}15 0%, #06060f 100%)`
@@ -396,7 +396,7 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
         <div
           style={{
             position: 'absolute',
-            inset: 8,
+            inset: 4,
             borderRadius: '50%',
             border: '1px solid rgba(124,58,255,0.12)',
             pointerEvents: 'none',
@@ -405,7 +405,7 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
         <div
           style={{
             position: 'absolute',
-            inset: 20,
+            inset: 12,
             borderRadius: '50%',
             border: '1px solid rgba(0,229,255,0.08)',
             pointerEvents: 'none',
@@ -431,7 +431,7 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
               <div
                 className="font-display font-black"
                 style={{
-                  fontSize: '4rem',
+                  fontSize: '2.2rem',
                   lineHeight: 1,
                   color: slotColor(round.winnerSlot),
                   textShadow: `0 0 30px ${slotColor(round.winnerSlot)}, 0 0 60px ${slotColor(round.winnerSlot)}88`,
@@ -447,7 +447,7 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="font-display font-bold tracking-widest animate-timer-pulse"
-              style={{ color: '#a0a8c8', fontSize: '1rem' }}
+              style={{ color: '#a0a8c8', fontSize: '0.7rem' }}
             >
               SPINNING...
             </motion.div>
@@ -459,7 +459,7 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
               exit={{ opacity: 0 }}
               style={{ textAlign: 'center' }}
             >
-              <div className="font-display font-black text-xl tracking-widest">
+              <div className="font-display font-black text-sm tracking-widest">
                 <span style={{ color: '#00e5ff', textShadow: '0 0 12px rgba(0,229,255,0.6)' }}>HASH</span>
                 <span style={{ color: '#bf00ff', textShadow: '0 0 12px rgba(191,0,255,0.6)' }}>SPIN</span>
               </div>
@@ -472,14 +472,14 @@ export function SpinWheel({ round, selectedSlot, userBetSlot, timerProgress }: P
       <div
         style={{
           position: 'absolute',
-          top: -6,
-          left: CENTER - 12,
+          top: -4,
+          left: CENTER - 8,
           width: 0,
           height: 0,
-          borderLeft: '12px solid transparent',
-          borderRight: '12px solid transparent',
-          borderTop: '20px solid #e8eeff',
-          filter: 'drop-shadow(0 0 8px rgba(232,238,255,0.6))',
+          borderLeft: '8px solid transparent',
+          borderRight: '8px solid transparent',
+          borderTop: '14px solid #e8eeff',
+          filter: 'drop-shadow(0 0 6px rgba(232,238,255,0.6))',
           zIndex: 10,
         }}
       />

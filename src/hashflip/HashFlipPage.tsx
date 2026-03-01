@@ -17,81 +17,57 @@ interface Props {
 }
 
 export function HashFlipPage({ walletConnected, walletAddress, onConnect, onDisconnect }: Props) {
-  const { round, history, userBet, placeBet, lastBlockTimestamp, blocksLoading } = useHashFlipState();
+  const { round, history, userBet, placeBet, lastBlockTimestamp } = useHashFlipState();
   const btcPrice = useBtcPrice();
   const [betInput, setBetInput] = useState('0.001');
 
   const handleBet = (side: Side) => {
-    const amount = parseFloat(betInput) || 0.001;
-    placeBet(side, amount);
+    placeBet(side, parseFloat(betInput) || 0.001);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', maxWidth: 960, margin: '0 auto', width: '100%' }}>
-      {/* Title */}
-      <div style={{ textAlign: 'center', marginBottom: 8 }}>
-        <h1
-          className="font-display font-black tracking-widest animate-flicker"
-          style={{ fontSize: 'clamp(2rem, 5vw, 3.2rem)', lineHeight: 1, letterSpacing: '0.15em' }}
-        >
-          <span style={{ color: '#00e5ff', textShadow: '0 0 30px rgba(0,229,255,0.6), 0 0 60px rgba(0,229,255,0.25)' }}>HASH</span>
-          <span style={{ color: '#bf00ff', textShadow: '0 0 30px rgba(191,0,255,0.6), 0 0 60px rgba(191,0,255,0.25)' }}>FLIP</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxWidth: 900, margin: '0 auto', width: '100%' }}>
+      {/* Title — compact */}
+      <div style={{ textAlign: 'center' }}>
+        <h1 className="font-display font-black tracking-widest" style={{ fontSize: 'clamp(1.4rem, 4vw, 2.2rem)', lineHeight: 1 }}>
+          <span style={{ color: '#00e5ff' }}>HASH</span>
+          <span style={{ color: '#bf00ff' }}>FLIP</span>
         </h1>
-        <p className="font-mono text-xs mt-1 tracking-wider" style={{ color: '#c4ccee' }}>
-          BET ON THE LAST BYTE OF THE NEXT BITCOIN BLOCK HASH
+        <p className="font-mono mt-1" style={{ color: '#6872a0', fontSize: '0.65rem', letterSpacing: '0.1em' }}>
+          BET ON THE LAST BYTE OF THE NEXT BLOCK HASH
         </p>
-        {blocksLoading && (
-          <p className="font-mono text-xs mt-1 animate-pulse" style={{ color: '#a0a8c8' }}>
-            Connecting to Bitcoin network...
-          </p>
-        )}
       </div>
 
       {/* Timer */}
       <BlockTimer round={round} lastBlockTimestamp={lastBlockTimestamp} />
 
-      {/* LOW / HIGH panels side by side */}
+      {/* LOW / HIGH panels */}
       {round && (
-        <div className="flip-panels-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 10 }}>
+        <div className="flip-panels-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <SidePanel side="LOW" pool={round.poolLow} otherPool={round.poolHigh} phase={round.phase} winner={round.winner} userBet={userBet} btcPrice={btcPrice} />
           <SidePanel side="HIGH" pool={round.poolHigh} otherPool={round.poolLow} phase={round.phase} winner={round.winner} userBet={userBet} btcPrice={btcPrice} />
         </div>
       )}
 
       {/* Bet input + Wallet */}
-      <div
-        className="flip-bet-box rounded-xl border border-dark-border"
-        style={{ background: '#0c0c1e', padding: '16px 28px', marginTop: 10 }}
-      >
+      <div className="flip-bet-box rounded-xl border border-dark-border" style={{ background: '#0a0a1e', padding: '10px 14px' }}>
         {(round?.phase === 'BETTING' || userBet) && (
-          <BetInput
-            value={betInput}
-            onChange={setBetInput}
-            onBet={handleBet}
-            userBet={userBet}
-            disabled={round?.phase !== 'BETTING'}
-            btcPrice={btcPrice}
-          />
+          <BetInput value={betInput} onChange={setBetInput} onBet={handleBet} userBet={userBet} disabled={round?.phase !== 'BETTING'} btcPrice={btcPrice} />
         )}
-        <div style={{ marginTop: round?.phase === 'BETTING' || userBet ? 10 : 0 }}>
-          <ConnectWallet
-            connected={walletConnected}
-            address={walletAddress}
-            onConnect={onConnect}
-            onDisconnect={onDisconnect}
-          />
+        <div style={{ marginTop: (round?.phase === 'BETTING' || userBet) ? 6 : 0 }}>
+          <ConnectWallet connected={walletConnected} address={walletAddress} onConnect={onConnect} onDisconnect={onDisconnect} />
         </div>
       </div>
 
       {/* Pool distribution */}
       {round && (
-        <div className="rounded-xl border border-dark-border" style={{ background: '#0c0c1e', padding: '12px 28px', marginTop: 10 }}>
+        <div className="rounded-xl border border-dark-border" style={{ background: '#0a0a1e', padding: '8px 14px' }}>
           <PoolBar poolLow={round.poolLow} poolHigh={round.poolHigh} btcPrice={btcPrice} />
         </div>
       )}
 
       {/* History */}
-      <div className="rounded-xl border border-dark-border" style={{ background: '#0c0c1e', padding: '14px 28px', marginTop: 10 }}>
+      <div className="rounded-xl border border-dark-border" style={{ background: '#0a0a1e', padding: '8px 14px' }}>
         <History entries={history} />
       </div>
     </div>

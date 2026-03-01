@@ -277,10 +277,10 @@ body {
 /* ── HASHBET title glow pulse ────────────────────────────────────── */
 @keyframes neon-breathe {
   0%,100% {
-    filter: brightness(1) drop-shadow(0 0 30px rgba(0,229,255,0.3)) drop-shadow(0 0 60px rgba(191,0,255,0.2));
+    filter: brightness(0.95) drop-shadow(0 0 15px rgba(0,229,255,0.2)) drop-shadow(0 0 30px rgba(191,0,255,0.12));
   }
   50% {
-    filter: brightness(1.15) drop-shadow(0 0 50px rgba(0,229,255,0.5)) drop-shadow(0 0 90px rgba(191,0,255,0.35));
+    filter: brightness(1.05) drop-shadow(0 0 25px rgba(0,229,255,0.3)) drop-shadow(0 0 50px rgba(191,0,255,0.2));
   }
 }
 .animate-neon-breathe { animation: neon-breathe 4s ease-in-out infinite; }
@@ -353,7 +353,7 @@ body {
   /* HashSpin: stack wheel + controls */
   .spin-layout { flex-direction: column !important; gap: 12px !important; }
   .spin-wheel-col { width: 100% !important; flex: none !important; display: flex; justify-content: center; }
-  .spin-wheel-wrap { transform: scale(0.52); transform-origin: top center; margin-bottom: -200px; }
+  .spin-wheel-wrap { transform: scale(0.75); transform-origin: top center; margin-bottom: -80px; }
   .spin-controls-col { width: 100% !important; }
 
   /* HashPot: stack timer + bet */
@@ -376,5 +376,11 @@ body {
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
-  .spin-wheel-wrap { transform: scale(0.72); transform-origin: top center; margin-bottom: -120px; }
+  .spin-wheel-wrap { transform: scale(0.85); transform-origin: top center; margin-bottom: -40px; }
+}
+
+/* ── Laptop (14-15") — compact spacing ─────────────────────────── */
+@media (max-height: 900px) and (min-width: 769px) {
+  .game-cards-grid { gap: 16px !important; }
+  .game-card-padding { padding: 28px 24px 24px !important; }
 }

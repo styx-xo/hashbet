@@ -1,35 +1,32 @@
 import { motion } from 'framer-motion';
 
 const btc = (sats: number) => (sats / 100_000_000).toFixed(4);
-const usd = (sats: number, price: number) =>
-  '$' + Math.round((sats / 100_000_000) * price).toLocaleString();
-
 interface Props {
   poolLow: number;
   poolHigh: number;
   btcPrice?: number | null;
 }
 
-export function PoolBar({ poolLow, poolHigh, btcPrice }: Props) {
+export function PoolBar({ poolLow, poolHigh }: Props) {
   const total = poolLow + poolHigh;
   const lowPct  = total > 0 ? (poolLow  / total) * 100 : 50;
   const highPct = 100 - lowPct;
 
   return (
     <div className="w-full">
-      <div className="flex justify-between items-baseline mb-2">
-        <span className="font-display text-xs tracking-widest text-low">
-          LOW {lowPct.toFixed(1)}%
+      <div className="flex justify-between items-baseline mb-1">
+        <span className="font-display tracking-widest text-low" style={{ fontSize: '0.6rem' }}>
+          LOW {lowPct.toFixed(0)}%
         </span>
-        <span className="font-display tracking-widest font-bold" style={{ color: '#a0a8c8', fontSize: '0.65rem' }}>POOL DISTRIBUTION</span>
-        <span className="font-display text-xs tracking-widest text-high">
-          {highPct.toFixed(1)}% HIGH
+        <span className="font-display tracking-widest font-bold" style={{ color: '#6872a0', fontSize: '0.55rem' }}>POOL</span>
+        <span className="font-display tracking-widest text-high" style={{ fontSize: '0.6rem' }}>
+          {highPct.toFixed(0)}% HIGH
         </span>
       </div>
 
       {/* Bar */}
       <div
-        className="relative h-4 rounded-full overflow-hidden"
+        className="relative h-2.5 rounded-full overflow-hidden"
         style={{ background: '#080814', border: '1px solid #1e2048' }}
       >
         {/* LOW fill */}
@@ -58,19 +55,10 @@ export function PoolBar({ poolLow, poolHigh, btcPrice }: Props) {
       </div>
 
       {/* BTC amounts */}
-      <div className="flex justify-between mt-2 font-mono text-sm">
-        <div className="flex flex-col">
-          <span className="text-low font-bold">{btc(poolLow)} BTC</span>
-          {btcPrice && <span className="font-bold" style={{ fontSize: '0.85rem', color: '#00e5ff' }}>{usd(poolLow, btcPrice)}</span>}
-        </div>
-        <div className="flex flex-col items-center">
-          <span className="font-bold" style={{ fontSize: '0.9rem', color: '#a0a8c8' }}>TOTAL {btc(total)} BTC</span>
-          {btcPrice && <span className="font-bold" style={{ fontSize: '0.85rem', color: '#c4ccee' }}>{usd(total, btcPrice)}</span>}
-        </div>
-        <div className="flex flex-col items-end">
-          <span className="text-high font-bold">{btc(poolHigh)} BTC</span>
-          {btcPrice && <span className="font-bold" style={{ fontSize: '0.85rem', color: '#bf00ff' }}>{usd(poolHigh, btcPrice)}</span>}
-        </div>
+      <div className="flex justify-between mt-1 font-mono" style={{ fontSize: '0.7rem' }}>
+        <span className="text-low font-bold">{btc(poolLow)}</span>
+        <span className="font-bold" style={{ color: '#6872a0' }}>TOTAL {btc(total)} BTC</span>
+        <span className="text-high font-bold">{btc(poolHigh)}</span>
       </div>
     </div>
   );
