@@ -325,6 +325,34 @@ export interface IHashPotContract extends BaseContractProperties {
   _getSlotPoolBatch(roundId: bigint, start: number, count: number): Promise<CallResult<{ data: Uint8Array }, []>>;
 }
 
+// ─── OPNet block height helper ───────────────────────────────────────────────
+
+export async function fetchOpnetBlockHeight(): Promise<{ height: number; timestamp: number }> {
+  const res = await fetch(OPNET_RPC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'btc_blockNumber', params: [], id: 1 }),
+  });
+  const json = await res.json() as { result?: string };
+  const height = parseInt(json.result ?? '0', 16);
+
+  // Fetch block timestamp
+  const bRes = await fetch(OPNET_RPC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'btc_getBlockByNumber',
+      params: ['0x' + height.toString(16), false],
+      id: 2,
+    }),
+  });
+  const bJson = await bRes.json() as { result?: { timestamp?: string } };
+  const timestamp = parseInt(bJson.result?.timestamp ?? '0', 16);
+
+  return { height, timestamp };
+}
+
 // ─── Contract factories ─────────────────────────────────────────────────────
 
 export function getHashFlipContract(): IHashFlipContract {

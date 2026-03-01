@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { PotRound, PotHistoryEntry } from './types';
 import { useRealBlocks, fetchBlockHash } from '../hooks/useRealBlocks';
 import { CONTRACT_ADDRESSES, OPNET_NETWORK } from '../lib/config';
-import { getHashPotContract, type IHashPotContract } from '../lib/contracts';
+import { getHashPotContract, fetchOpnetBlockHeight, type IHashPotContract } from '../lib/contracts';
 
 function calcMulti(winnerPool: number, totalPool: number): number {
   if (winnerPool <= 0) return 1;
@@ -20,6 +20,7 @@ export function useHashPotState() {
   const [history, setHistory] = useState<PotHistoryEntry[]>([]);
   const [userBet, setUserBet] = useState<{ slot: number; amount: number } | null>(null);
   const [txPending, setTxPending] = useState(false);
+  const [opnetTip, setOpnetTip] = useState<{ height: number; timestamp: number } | null>(null);
 
   const roundRef = useRef<PotRound | null>(null);
   const nextId = useRef(1);
@@ -46,6 +47,10 @@ export function useHashPotState() {
     if (!contract) return;
 
     try {
+      // Fetch OPNet block height (same chain as contracts)
+      const opnetBlock = await fetchOpnetBlockHeight();
+      setOpnetTip(opnetBlock);
+
       const currentRoundResult = await contract._getCurrentRound();
       if (currentRoundResult.revert || !currentRoundResult.properties) return;
       const roundId = currentRoundResult.properties.roundId;
@@ -86,7 +91,7 @@ export function useHashPotState() {
         }
       }
 
-      const currentBlock = tip?.height ?? targetBlock;
+      const currentBlock = opnetBlock.height;
       const phase: PotRound['phase'] = isSettled
         ? 'SETTLED'
         : (currentBlock >= targetBlock ? 'DRAWING' : 'BETTING');
@@ -104,7 +109,7 @@ export function useHashPotState() {
     } catch (err) {
       console.warn('HashPot contract poll failed:', err);
     }
-  }, [getContract, tip]);
+  }, [getContract]);
 
   useEffect(() => {
     if (!tip || initialized.current) return;
@@ -252,7 +257,7 @@ export function useHashPotState() {
     userBet,
     placeBet,
     txPending,
-    lastBlockTimestamp: tip?.timestamp ?? null,
+    lastBlockTimestamp: contractsDeployed ? (opnetTip?.timestamp ?? null) : (tip?.timestamp ?? null),
     blocksLoading,
     blocksError,
     wsConnected,
