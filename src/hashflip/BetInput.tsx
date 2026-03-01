@@ -22,21 +22,29 @@ export function BetInput({ value, onChange, onBet, userBet, disabled }: Props) {
       {userBet ? (
         <motion.div
           key="confirmed"
-          className="flex items-center gap-2 justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          className="flex flex-col items-center gap-1 py-2"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          transition={{ type: 'spring', bounce: 0.5 }}
         >
-          <CheckCircle size={16} style={{ color: userBet.side === 'LOW' ? '#00e5ff' : '#bf00ff' }} />
-          <span className="font-display font-black text-sm" style={{ color: userBet.side === 'LOW' ? '#00e5ff' : '#bf00ff' }}>
-            {userBet.side}
-          </span>
-          <span className="font-mono font-bold text-sm" style={{ color: '#e8eeff' }}>
+          <div className="flex items-center gap-2">
+            <CheckCircle size={20} style={{ color: userBet.side === 'LOW' ? '#00e5ff' : '#bf00ff' }} />
+            <span className="font-display font-black tracking-widest" style={{ fontSize: '1.2rem', color: userBet.side === 'LOW' ? '#00e5ff' : '#bf00ff', textShadow: `0 0 16px ${userBet.side === 'LOW' ? 'rgba(0,229,255,0.6)' : 'rgba(191,0,255,0.6)'}` }}>
+              BET PLACED — {userBet.side}
+            </span>
+          </div>
+          <span className="font-mono font-bold" style={{ fontSize: '1rem', color: '#e8eeff' }}>
             {(userBet.amount / 100_000_000).toFixed(4)} BTC
           </span>
-          <span className="font-mono text-xs animate-timer-pulse" style={{ color: '#6872a0' }}>
-            Waiting...
-          </span>
+          <motion.span
+            className="font-display text-xs tracking-widest"
+            style={{ color: '#6872a0' }}
+            animate={{ opacity: [1, 0.4, 1] }}
+            transition={{ duration: 1.2, repeat: Infinity }}
+          >
+            WAITING FOR NEXT BLOCK...
+          </motion.span>
         </motion.div>
       ) : (
         <motion.div

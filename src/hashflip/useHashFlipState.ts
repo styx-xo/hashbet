@@ -208,6 +208,7 @@ export function useHashFlipState() {
     const r = roundRef.current;
     if (!r || r.phase !== 'BETTING' || userBet) return;
     const sats = Math.round(amountBtc * 100_000_000);
+    console.log('[HashFlip] placeBet:', side, amountBtc, 'BTC =', sats, 'sats | phase:', r.phase);
 
     if (contractsDeployed) {
       const contract = getContract();
