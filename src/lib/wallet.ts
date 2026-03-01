@@ -1,49 +1,51 @@
-import { UnisatSigner } from '@btc-vision/transaction';
-
 export interface WalletState {
   connected: boolean;
   address: string | null;
-  signer: UnisatSigner | null;
 }
 
 export const INITIAL_WALLET_STATE: WalletState = {
   connected: false,
   address: null,
-  signer: null,
 };
 
-export function isUnisatAvailable(): boolean {
-  return typeof window !== 'undefined' && !!(window as unknown as Record<string, unknown>).unisat;
+type WalletProvider = {
+  requestAccounts: () => Promise<string[]>;
+  getAccounts: () => Promise<string[]>;
+  switchNetwork?: (network: string) => Promise<void>;
+};
+
+function getWalletProvider(): WalletProvider | null {
+  if (typeof window === 'undefined') return null;
+  const w = window as unknown as Record<string, unknown>;
+
+  // OP_WALLET (window.opnet)
+  if (w.opnet) return w.opnet as WalletProvider;
+  // Unisat
+  if (w.unisat) return w.unisat as WalletProvider;
+  // Xverse
+  if (w.BitcoinProvider) return w.BitcoinProvider as WalletProvider;
+
+  return null;
+}
+
+export function isWalletAvailable(): boolean {
+  return getWalletProvider() !== null;
 }
 
 export async function connectWallet(): Promise<WalletState> {
-  if (!isUnisatAvailable()) {
-    throw new Error('Unisat wallet not detected. Please install the Unisat browser extension.');
+  const provider = getWalletProvider();
+  if (!provider) {
+    throw new Error('No Bitcoin wallet detected. Please install OP_WALLET or Unisat.');
   }
 
-  const unisat = (window as unknown as Record<string, unknown>).unisat as {
-    requestAccounts: () => Promise<string[]>;
-    switchNetwork: (network: string) => Promise<void>;
-  };
-
-  // Request connection
-  await unisat.requestAccounts();
-
-  // Switch to testnet (OPNet testnet uses signet)
-  try {
-    await unisat.switchNetwork('testnet');
-  } catch {
-    // May already be on testnet
+  const accounts = await provider.requestAccounts();
+  if (!accounts || accounts.length === 0) {
+    throw new Error('No accounts returned from wallet.');
   }
-
-  // Create signer
-  const signer = new UnisatSigner();
-  await signer.init();
 
   return {
     connected: true,
-    address: signer.p2tr,
-    signer,
+    address: accounts[0],
   };
 }
 
