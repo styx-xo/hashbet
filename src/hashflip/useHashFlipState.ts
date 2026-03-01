@@ -67,37 +67,34 @@ export function useHashFlipState() {
       if (!roundId || roundId === 0n) return; // no rounds yet
 
       const roundDataResult = await contract._getRound(roundId);
-      if (roundDataResult.revert || !roundDataResult.properties) return;
+      if (roundDataResult.revert) return;
 
-      // Parse round data bytes:
-      // targetBlock(u64) | currentBlock(u64) | poolLow(u256) | poolHigh(u256) | phase(u8) | winner(u8) | hashByte(u8)
-      const data = roundDataResult.properties.data;
-      if (!data || data.length < 8) return;
+      // BinaryReader result: targetBlock(u64) | settled(bool) | winnerSide(u8) | poolLow(u256) | poolHigh(u256)
+      const reader = roundDataResult.result;
+      if (!reader || reader.byteLength < 10) return;
+      reader.setOffset(0);
 
-      const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-      const targetBlock = Number(view.getBigUint64(0, true));
-      const poolLowBig = data.slice(16, 48);
-      const poolHighBig = data.slice(48, 80);
+      const targetBlock = Number(reader.readU64());
+      const settled = reader.readBoolean();
+      const winnerSide = reader.readU8();
+      const poolLow = Number(reader.readU256());
+      const poolHigh = Number(reader.readU256());
 
-      // Read pool values as u64 from first 8 bytes of each u256 (little-endian)
-      const poolLow = Number(new DataView(poolLowBig.buffer, poolLowBig.byteOffset).getBigUint64(0, true));
-      const poolHigh = Number(new DataView(poolHighBig.buffer, poolHighBig.byteOffset).getBigUint64(0, true));
-
-      const phase = data[80];
-      const winner = data[81];
-      const hashByte = data[82];
-
-      const phaseMap: Record<number, Round['phase']> = { 0: 'BETTING', 1: 'AWAITING', 2: 'SETTLED' };
+      const currentBlock = tip?.height ?? targetBlock;
+      const isSettled = settled;
+      const phase: Round['phase'] = isSettled
+        ? 'SETTLED'
+        : (currentBlock >= targetBlock ? 'AWAITING' : 'BETTING');
 
       const contractRound: Round = {
         id: Number(roundId),
         targetBlock,
-        currentBlock: tip?.height ?? targetBlock,
+        currentBlock,
         poolLow,
         poolHigh,
-        phase: phaseMap[phase] ?? 'BETTING',
-        winner: phase === 2 ? (winner === 0 ? 'LOW' : 'HIGH') : undefined,
-        hashByte: phase === 2 ? hashByte : undefined,
+        phase,
+        winner: isSettled ? (winnerSide === 0 ? 'LOW' : 'HIGH') : undefined,
+        hashByte: undefined,
       };
 
       setRound(contractRound);

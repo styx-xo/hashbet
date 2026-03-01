@@ -51,40 +51,42 @@ export function useHashSpinState() {
       const roundId = currentRoundResult.properties.roundId;
       if (!roundId || roundId === 0n) return;
 
-      // Fetch all 16 slot pools
+      // _getRound returns: targetBlock(u64) | settled(bool) | winnerSlot(u8) | totalPool(u256) | slots(16×u256)
+      const roundDataResult = await contract._getRound(roundId);
+      if (roundDataResult.revert) return;
+
+      const reader = roundDataResult.result;
+      if (!reader || reader.byteLength < 10) return;
+      reader.setOffset(0);
+
+      const targetBlock = Number(reader.readU64());
+      const isSettled = reader.readBoolean();
+      const winnerSlot = reader.readU8();
+      const totalPool = Number(reader.readU256());
+
       const pools: number[] = [];
       for (let i = 0; i < 16; i++) {
         try {
-          const poolResult = await contract._getSlotPool(roundId, i);
-          pools.push(poolResult.revert ? 0 : Number(poolResult.properties.amount));
+          pools.push(Number(reader.readU256()));
         } catch {
           pools.push(0);
         }
       }
 
-      const totalPool = pools.reduce((a, b) => a + b, 0);
-
-      const roundDataResult = await contract._getRound(roundId);
-      if (roundDataResult.revert || !roundDataResult.properties) return;
-      const data = roundDataResult.properties.data;
-      if (!data || data.length < 8) return;
-
-      const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-      const targetBlock = Number(view.getBigUint64(0, true));
-      const phase = data.length > 80 ? data[80] : 0;
-      const winnerSlot = data.length > 81 ? data[81] : undefined;
-
-      const phaseMap: Record<number, SpinRound['phase']> = { 0: 'BETTING', 1: 'SPINNING', 2: 'SETTLED' };
+      const currentBlock = tip?.height ?? targetBlock;
+      const phase: SpinRound['phase'] = isSettled
+        ? 'SETTLED'
+        : (currentBlock >= targetBlock ? 'SPINNING' : 'BETTING');
 
       setRound({
         id: Number(roundId),
         targetBlock,
-        currentBlock: tip?.height ?? targetBlock,
+        currentBlock,
         slotPools: pools,
         totalPool,
-        phase: phaseMap[phase] ?? 'BETTING',
-        winnerSlot: phase === 2 ? winnerSlot : undefined,
-        hashNibble: phase === 2 ? winnerSlot : undefined,
+        phase,
+        winnerSlot: isSettled ? winnerSlot : undefined,
+        hashNibble: isSettled ? winnerSlot : undefined,
       });
     } catch (err) {
       console.warn('HashSpin contract poll failed:', err);

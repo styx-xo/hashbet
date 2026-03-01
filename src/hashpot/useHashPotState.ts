@@ -51,19 +51,33 @@ export function useHashPotState() {
       const roundId = currentRoundResult.properties.roundId;
       if (!roundId || roundId === 0n) return;
 
-      // Batch query: 8 batches of 32 slots each
+      // _getRound returns: targetBlock(u64) | settled(bool) | winnerSlot(u16) | totalPool(u256) = 43 bytes
+      const roundDataResult = await contract._getRound(roundId);
+      if (roundDataResult.revert) return;
+
+      const reader = roundDataResult.result;
+      if (!reader || reader.byteLength < 11) return;
+      reader.setOffset(0);
+
+      const targetBlock = Number(reader.readU64());
+      const isSettled = reader.readBoolean();
+      const winnerSlot = reader.readU16();
+      const totalPool = Number(reader.readU256());
+
+      // Fetch slot pools via batch queries (256 slots, each u256)
       const pools: number[] = new Array(256).fill(0);
       for (let batch = 0; batch < 8; batch++) {
         const start = batch * 32;
         try {
           const batchResult = await contract._getSlotPoolBatch(roundId, start, 32);
-          if (!batchResult.revert && batchResult.properties) {
-            const data = batchResult.properties.data;
+          if (!batchResult.revert && batchResult.result) {
+            const bReader = batchResult.result;
+            bReader.setOffset(0);
             for (let i = 0; i < 32; i++) {
-              const offset = i * 32;
-              if (offset + 8 <= data.length) {
-                const view = new DataView(data.buffer, data.byteOffset + offset, 8);
-                pools[start + i] = Number(view.getBigUint64(0, true));
+              try {
+                pools[start + i] = Number(bReader.readU256());
+              } catch {
+                break;
               }
             }
           }
@@ -72,30 +86,20 @@ export function useHashPotState() {
         }
       }
 
-      const totalPool = pools.reduce((a, b) => a + b, 0);
-
-      const roundDataResult = await contract._getRound(roundId);
-      if (roundDataResult.revert || !roundDataResult.properties) return;
-      const data = roundDataResult.properties.data;
-      if (!data || data.length < 8) return;
-
-      const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-      const targetBlock = Number(view.getBigUint64(0, true));
-      const phase = data.length > 80 ? data[80] : 0;
-      // HashPot winner is u16
-      const winnerSlot = data.length > 82 ? new DataView(data.buffer, data.byteOffset + 81, 2).getUint16(0, true) : undefined;
-
-      const phaseMap: Record<number, PotRound['phase']> = { 0: 'BETTING', 1: 'DRAWING', 2: 'SETTLED' };
+      const currentBlock = tip?.height ?? targetBlock;
+      const phase: PotRound['phase'] = isSettled
+        ? 'SETTLED'
+        : (currentBlock >= targetBlock ? 'DRAWING' : 'BETTING');
 
       setRound({
         id: Number(roundId),
         targetBlock,
-        currentBlock: tip?.height ?? targetBlock,
+        currentBlock,
         slotPools: pools,
         totalPool,
-        phase: phaseMap[phase] ?? 'BETTING',
-        winnerSlot: phase === 2 ? winnerSlot : undefined,
-        hashByte: phase === 2 ? winnerSlot : undefined,
+        phase,
+        winnerSlot: isSettled ? winnerSlot : undefined,
+        hashByte: isSettled ? winnerSlot : undefined,
       });
     } catch (err) {
       console.warn('HashPot contract poll failed:', err);
