@@ -53,7 +53,7 @@ export function HashSpinPage({ walletConnected, walletAddress, onConnect, onDisc
   }, [lastBlockTimestamp, round?.phase]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 960, margin: '0 auto', width: '100%' }}>
 
       {/* ── Title ──────────────────────────────────────── */}
       <div style={{ textAlign: 'center' }}>
@@ -75,22 +75,24 @@ export function HashSpinPage({ walletConnected, walletAddress, onConnect, onDisc
       </div>
 
       {/* ── Two-column layout: Wheel | Controls ────────── */}
-      <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+      <div className="spin-layout" style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
 
         {/* Left column — Wheel only */}
-        <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div className="spin-wheel-col" style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           {round && (
-            <SpinWheel
-              round={round}
-              selectedSlot={userBet ? userBet.slot : selectedSlot}
-              userBetSlot={userBet?.slot ?? null}
-              timerProgress={timerProgress}
-            />
+            <div className="spin-wheel-wrap">
+              <SpinWheel
+                round={round}
+                selectedSlot={userBet ? userBet.slot : selectedSlot}
+                userBetSlot={userBet?.slot ?? null}
+                timerProgress={timerProgress}
+              />
+            </div>
           )}
         </div>
 
         {/* Right column — Timer, Selector, Bet, Wallet */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="spin-controls-col" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Timer — compact */}
           <SpinTimer round={round} lastBlockTimestamp={lastBlockTimestamp} />
 

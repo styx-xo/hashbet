@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { Header } from './components/Header';
 import { BackgroundFX } from './components/BackgroundFX';
@@ -11,6 +11,7 @@ import { HashFlipFAQ } from './hashflip/FAQModal';
 import { HashSpinFAQ } from './hashspin/FAQModal';
 import { HashPotFAQ } from './hashpot/FAQModal';
 import { HashBetFAQ } from './components/HashBetFAQ';
+import { connectWallet, disconnectWallet, type WalletState, INITIAL_WALLET_STATE } from './lib/wallet';
 
 type GameRoute = '/' | '/flip' | '/spin' | '/pot';
 
@@ -22,8 +23,7 @@ const GAME_NAMES: Record<string, string> = {
 };
 
 export default function App() {
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [wallet, setWallet] = useState<WalletState>(INITIAL_WALLET_STATE);
   const [faqOpen, setFaqOpen] = useState(false);
 
   const { tip, error: blocksError, wsConnected } = useRealBlocks();
@@ -33,18 +33,23 @@ export default function App() {
   const gameName = GAME_NAMES[currentPath] ?? 'HASHBET';
   const isLanding = currentPath === '/';
 
-  const handleConnect = () => {
-    setWalletAddress('bc1qxy2k...a3f9');
-    setWalletConnected(true);
-  };
-  const handleDisconnect = () => {
-    setWalletAddress(null);
-    setWalletConnected(false);
-  };
+  const handleConnect = useCallback(async () => {
+    try {
+      const state = await connectWallet();
+      setWallet(state);
+    } catch (err) {
+      console.error('Wallet connection failed:', err);
+      alert(err instanceof Error ? err.message : 'Failed to connect wallet');
+    }
+  }, []);
+
+  const handleDisconnect = useCallback(() => {
+    setWallet(disconnectWallet());
+  }, []);
 
   const walletProps = {
-    walletConnected,
-    walletAddress,
+    walletConnected: wallet.connected,
+    walletAddress: wallet.address,
     onConnect: handleConnect,
     onDisconnect: handleDisconnect,
   };
@@ -74,7 +79,7 @@ export default function App() {
       </div>
 
       <div style={{ flex: 1, display: 'flex', alignItems: isLanding ? 'center' : 'flex-start', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
-        <div style={{ width: '100%', maxWidth: 1200, padding: '14px 20px 20px' }}>
+        <div className="page-content" style={{ width: '100%', maxWidth: 1200, padding: '14px 20px 20px' }}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/flip" element={<HashFlipPage {...walletProps} />} />

@@ -1,19 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { PotRound, PotHistoryEntry } from './types';
 import { useRealBlocks, fetchBlockHash } from '../hooks/useRealBlocks';
-
-function rndSlotPools(): number[] {
-  const pools = new Array(256).fill(0);
-  // Fewer bets per round relative to 256 slots — most slots empty
-  const numBets = 8 + Math.floor(Math.random() * 16);
-  for (let i = 0; i < numBets; i++) {
-    const slot = Math.floor(Math.random() * 256);
-    pools[slot] += 50_000 + Math.floor(Math.random() * 500_000);
-  }
-  return pools;
-}
-
-const BET_SIZES = [10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000];
+import { CONTRACT_ADDRESSES, OPNET_NETWORK } from '../lib/config';
+import { getHashPotContract, type IHashPotContract } from '../lib/contracts';
 
 function calcMulti(winnerPool: number, totalPool: number): number {
   if (winnerPool <= 0) return 1;
@@ -22,96 +11,131 @@ function calcMulti(winnerPool: number, totalPool: number): number {
   return +((winnerPool + netLoser) / winnerPool).toFixed(2);
 }
 
-const SEED_HISTORY: PotHistoryEntry[] = [
-  { roundId: 20, winnerSlot: 0x3A, totalPool: 4_200_000, winnerPool: 310_000, multiplier: 13.4 },
-  { roundId: 21, winnerSlot: 0xB7, totalPool: 5_100_000, winnerPool: 0, multiplier: 0 },
-  { roundId: 22, winnerSlot: 0x42, totalPool: 3_800_000, winnerPool: 450_000, multiplier: 8.4 },
-  { roundId: 23, winnerSlot: 0xF1, totalPool: 6_000_000, winnerPool: 520_000, multiplier: 11.5 },
-  { roundId: 24, winnerSlot: 0x0D, totalPool: 4_500_000, winnerPool: 0, multiplier: 0 },
-  { roundId: 25, winnerSlot: 0xC8, totalPool: 3_200_000, winnerPool: 400_000, multiplier: 7.9 },
-  { roundId: 26, winnerSlot: 0x55, totalPool: 5_500_000, winnerPool: 0, multiplier: 0 },
-  { roundId: 27, winnerSlot: 0x9E, totalPool: 4_800_000, winnerPool: 600_000, multiplier: 7.9 },
-  { roundId: 28, winnerSlot: 0x21, totalPool: 3_600_000, winnerPool: 250_000, multiplier: 14.3 },
-  { roundId: 29, winnerSlot: 0xEA, totalPool: 5_000_000, winnerPool: 0, multiplier: 0 },
-];
+const contractsDeployed = (CONTRACT_ADDRESSES.hashPot as string).length > 0;
 
 export function useHashPotState() {
   const { tip, loading: blocksLoading, error: blocksError, wsConnected } = useRealBlocks();
 
   const [round, setRoundState] = useState<PotRound | null>(null);
-  const [history, setHistory] = useState<PotHistoryEntry[]>(SEED_HISTORY);
+  const [history, setHistory] = useState<PotHistoryEntry[]>([]);
   const [userBet, setUserBet] = useState<{ slot: number; amount: number } | null>(null);
+  const [txPending, setTxPending] = useState(false);
 
   const roundRef = useRef<PotRound | null>(null);
-  const nextId = useRef(30);
+  const nextId = useRef(1);
   const isSettling = useRef(false);
   const initialized = useRef(false);
-  const betTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const contractRef = useRef<IHashPotContract | null>(null);
 
   const setRound = (r: PotRound | null) => {
     roundRef.current = r;
     setRoundState(r);
   };
 
-  const scheduleBet = () => {
-    const delay = 4_000 + Math.random() * 10_000;
-    betTimerRef.current = setTimeout(() => {
-      const r = roundRef.current;
-      if (!r || r.phase !== 'BETTING') return;
-
-      const slot = Math.floor(Math.random() * 256);
-      const amount = BET_SIZES[Math.floor(Math.random() * BET_SIZES.length)];
-
-      const newPools = [...r.slotPools];
-      newPools[slot] += amount;
-      const updated: PotRound = {
-        ...r,
-        slotPools: newPools,
-        totalPool: r.totalPool + amount,
-      };
-      setRound(updated);
-      scheduleBet();
-    }, delay);
-  };
-
-  useEffect(() => {
-    if (!round || round.phase !== 'BETTING') {
-      if (betTimerRef.current) clearTimeout(betTimerRef.current);
-      return;
+  const getContract = useCallback(() => {
+    if (!contractsDeployed) return null;
+    if (!contractRef.current) {
+      contractRef.current = getHashPotContract();
     }
-    scheduleBet();
-    return () => { if (betTimerRef.current) clearTimeout(betTimerRef.current); };
-  }, [round?.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+    return contractRef.current;
+  }, []);
+
+  // Poll contract using batch queries for 256 slots
+  const pollContractState = useCallback(async () => {
+    const contract = getContract();
+    if (!contract) return;
+
+    try {
+      const currentRoundResult = await contract._getCurrentRound();
+      if ('error' in currentRoundResult) return;
+      const roundId = currentRoundResult.properties.roundId;
+      if (roundId === 0n) return;
+
+      // Batch query: 8 batches of 32 slots each
+      const pools: number[] = new Array(256).fill(0);
+      for (let batch = 0; batch < 8; batch++) {
+        const start = batch * 32;
+        const batchResult = await contract._getSlotPoolBatch(roundId, start, 32);
+        if (!('error' in batchResult)) {
+          const data = batchResult.properties.data;
+          for (let i = 0; i < 32; i++) {
+            // Each slot is a u256 (32 bytes), read first 8 bytes as u64 (little-endian)
+            const offset = i * 32;
+            if (offset + 8 <= data.length) {
+              const view = new DataView(data.buffer, data.byteOffset + offset, 8);
+              pools[start + i] = Number(view.getBigUint64(0, true));
+            }
+          }
+        }
+      }
+
+      const totalPool = pools.reduce((a, b) => a + b, 0);
+
+      const roundDataResult = await contract._getRound(roundId);
+      if ('error' in roundDataResult) return;
+      const data = roundDataResult.properties.data;
+      if (!data || data.length < 8) return;
+
+      const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+      const targetBlock = Number(view.getBigUint64(0, true));
+      const phase = data.length > 80 ? data[80] : 0;
+      // HashPot winner is u16
+      const winnerSlot = data.length > 82 ? new DataView(data.buffer, data.byteOffset + 81, 2).getUint16(0, true) : undefined;
+
+      const phaseMap: Record<number, PotRound['phase']> = { 0: 'BETTING', 1: 'DRAWING', 2: 'SETTLED' };
+
+      setRound({
+        id: Number(roundId),
+        targetBlock,
+        currentBlock: tip?.height ?? targetBlock,
+        slotPools: pools,
+        totalPool,
+        phase: phaseMap[phase] ?? 'BETTING',
+        winnerSlot: phase === 2 ? winnerSlot : undefined,
+        hashByte: phase === 2 ? winnerSlot : undefined,
+      });
+    } catch (err) {
+      console.warn('HashPot contract poll failed:', err);
+    }
+  }, [getContract, tip]);
 
   useEffect(() => {
     if (!tip || initialized.current) return;
     initialized.current = true;
-    const pools = rndSlotPools();
-    const total = pools.reduce((a, b) => a + b, 0);
-    setRound({
-      id: nextId.current,
-      targetBlock: tip.height + 1,
-      currentBlock: tip.height,
-      slotPools: pools,
-      totalPool: total,
-      phase: 'BETTING',
-    });
-  }, [tip]);
+
+    if (contractsDeployed) {
+      pollContractState();
+    } else {
+      setRound({
+        id: nextId.current,
+        targetBlock: tip.height + 1,
+        currentBlock: tip.height,
+        slotPools: new Array(256).fill(0),
+        totalPool: 0,
+        phase: 'BETTING',
+      });
+    }
+  }, [tip, pollContractState]);
 
   useEffect(() => {
-    if (!tip) return;
+    if (!contractsDeployed || !initialized.current) return;
+    const interval = setInterval(pollContractState, 10_000);
+    return () => clearInterval(interval);
+  }, [pollContractState]);
+
+  // Local mode: react to new blocks
+  useEffect(() => {
+    if (!tip || contractsDeployed) return;
     const r = roundRef.current;
     if (!r) return;
 
     if (r.currentBlock !== tip.height && r.phase === 'BETTING') {
-      const updated = { ...r, currentBlock: tip.height };
-      setRound(updated);
+      setRound({ ...r, currentBlock: tip.height });
     }
 
     if (tip.height >= r.targetBlock && r.phase === 'BETTING' && !isSettling.current) {
       isSettling.current = true;
-      const drawing: PotRound = { ...r, phase: 'DRAWING', currentBlock: tip.height };
-      setRound(drawing);
+      setRound({ ...r, phase: 'DRAWING', currentBlock: tip.height });
 
       fetchBlockHash(r.targetBlock)
         .then(hash => {
@@ -120,22 +144,15 @@ export function useHashPotState() {
           const multi = calcMulti(winnerPool, r.totalPool);
 
           setTimeout(() => {
-            const settled: PotRound = {
+            setRound({
               ...r,
               phase: 'SETTLED',
               winnerSlot: lastByte,
               hashByte: lastByte,
               currentBlock: tip.height,
-            };
-            setRound(settled);
+            });
             setHistory(prev => [
-              {
-                roundId: r.id,
-                winnerSlot: lastByte,
-                totalPool: r.totalPool,
-                winnerPool,
-                multiplier: multi,
-              },
+              { roundId: r.id, winnerSlot: lastByte, totalPool: r.totalPool, winnerPool, multiplier: multi },
               ...prev.slice(0, 14),
             ]);
 
@@ -143,14 +160,12 @@ export function useHashPotState() {
               isSettling.current = false;
               nextId.current += 1;
               const h = roundRef.current?.currentBlock ?? tip.height;
-              const pools = rndSlotPools();
-              const total = pools.reduce((a, b) => a + b, 0);
               setRound({
                 id: nextId.current,
                 targetBlock: h + 1,
                 currentBlock: h,
-                slotPools: pools,
-                totalPool: total,
+                slotPools: new Array(256).fill(0),
+                totalPool: 0,
                 phase: 'BETTING',
               });
               setUserBet(null);
@@ -164,28 +179,61 @@ export function useHashPotState() {
     }
   }, [tip]);
 
-  const placeBet = (slot: number, amountBtc: number) => {
+  useEffect(() => {
+    if (!tip || !contractsDeployed) return;
+    pollContractState();
+  }, [tip, pollContractState]);
+
+  const placeBet = useCallback(async (slot: number, amountBtc: number) => {
     const r = roundRef.current;
     if (!r || r.phase !== 'BETTING' || userBet) return;
     if (slot < 0 || slot > 255) return;
     const sats = Math.round(amountBtc * 100_000_000);
-    setUserBet({ slot, amount: sats });
 
-    const newPools = [...r.slotPools];
-    newPools[slot] += sats;
-    const updated: PotRound = {
-      ...r,
-      slotPools: newPools,
-      totalPool: r.totalPool + sats,
-    };
-    setRound(updated);
-  };
+    if (contractsDeployed) {
+      const contract = getContract();
+      if (!contract) return;
+
+      setTxPending(true);
+      try {
+        const simulation = await contract._bet(BigInt(r.id), slot, BigInt(sats));
+        if ('error' in simulation || simulation.revert) {
+          console.error('Bet simulation failed:', 'error' in simulation ? simulation.error : simulation.revert);
+          setTxPending(false);
+          return;
+        }
+
+        const receipt = await simulation.sendTransaction({
+          signer: null,
+          mldsaSigner: null,
+          refundTo: '',
+          maximumAllowedSatToSpend: BigInt(sats + 50_000),
+          feeRate: 10,
+          network: OPNET_NETWORK,
+        });
+
+        console.log('Bet TX:', receipt.transactionId);
+        setUserBet({ slot, amount: sats });
+        await pollContractState();
+      } catch (err) {
+        console.error('Bet failed:', err);
+      } finally {
+        setTxPending(false);
+      }
+    } else {
+      setUserBet({ slot, amount: sats });
+      const newPools = [...r.slotPools];
+      newPools[slot] += sats;
+      setRound({ ...r, slotPools: newPools, totalPool: r.totalPool + sats });
+    }
+  }, [userBet, getContract, pollContractState]);
 
   return {
     round,
     history,
     userBet,
     placeBet,
+    txPending,
     lastBlockTimestamp: tip?.timestamp ?? null,
     blocksLoading,
     blocksError,

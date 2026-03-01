@@ -1,31 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Round, HistoryEntry, Side } from './types';
 import { useRealBlocks, fetchBlockHash } from '../hooks/useRealBlocks';
-
-export interface LiveBet {
-  id: number;
-  side: Side;
-  amount: number; // satoshis
-  ts: number;     // Date.now()
-}
-
-function rndPools(): [number, number] {
-  const total = 15_000_000 + Math.floor(Math.random() * 25_000_000);
-  const r = 0.35 + Math.random() * 0.3;
-  return [Math.floor(total * r), Math.floor(total * (1 - r))];
-}
+import { CONTRACT_ADDRESSES, OPNET_NETWORK } from '../lib/config';
+import { getHashFlipContract, type IHashFlipContract } from '../lib/contracts';
 
 function calcMulti(myPool: number, theirPool: number): number {
   return myPool > 0 ? +(1 + (theirPool * 0.98) / myPool).toFixed(2) : 1;
-}
-
-// Realistic-ish bet sizes (sats)
-const BET_SIZES = [10_000, 20_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 2_000_000];
-
-function rndBet(): { side: Side; amount: number } {
-  const side: Side = Math.random() < 0.5 ? 'LOW' : 'HIGH';
-  const amount = BET_SIZES[Math.floor(Math.random() * BET_SIZES.length)];
-  return { side, amount };
 }
 
 async function fetchRecentHistory(tipHeight: number, count: number): Promise<HistoryEntry[]> {
@@ -36,86 +16,127 @@ async function fetchRecentHistory(tipHeight: number, count: number): Promise<His
       const hash = await fetchBlockHash(height);
       const lastByte = parseInt(hash.trim().slice(-2), 16);
       const winner: Side = lastByte < 128 ? 'LOW' : 'HIGH';
-      const multi = 1.7 + Math.random() * 0.3;
-      entries.push({ roundId: height, winner, hashByte: lastByte, multiplier: +multi.toFixed(2) });
+      entries.push({ roundId: height, winner, hashByte: lastByte, multiplier: 0 });
     } catch {
-      // Skip failed fetches, continue with rest
+      // skip
     }
   }
   return entries;
 }
 
+const contractsDeployed = (CONTRACT_ADDRESSES.hashFlip as string).length > 0;
+
 export function useHashFlipState() {
   const { tip, loading: blocksLoading, error: blocksError, wsConnected } = useRealBlocks();
 
   const [round, setRoundState] = useState<Round | null>(null);
-  const [history, setHistory]   = useState<HistoryEntry[]>([]);
-  const [userBet, setUserBet]   = useState<{ side: Side; amount: number } | null>(null);
-  const [recentBets, setRecentBets] = useState<LiveBet[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [userBet, setUserBet] = useState<{ side: Side; amount: number } | null>(null);
+  const [txPending, setTxPending] = useState(false);
 
-  const roundRef     = useRef<Round | null>(null);
-  const nextId       = useRef(43);
-  const isSettling   = useRef(false);
-  const initialized  = useRef(false);
-  const betTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const roundRef = useRef<Round | null>(null);
+  const nextId = useRef(1);
+  const isSettling = useRef(false);
+  const initialized = useRef(false);
+  const contractRef = useRef<IHashFlipContract | null>(null);
 
   const setRound = (r: Round | null) => {
     roundRef.current = r;
     setRoundState(r);
   };
 
-  // ── Simulated live bets ───────────────────────────────────────────
-  const scheduleBet = () => {
-    const delay = 5_000 + Math.random() * 13_000; // 5–18s
-    betTimerRef.current = setTimeout(() => {
-      const r = roundRef.current;
-      if (!r || r.phase !== 'BETTING') return;
-
-      const { side, amount } = rndBet();
-      const bet: LiveBet = { id: Date.now(), side, amount, ts: Date.now() };
-
-      setRecentBets(prev => [bet, ...prev.slice(0, 9)]);
-      const updated = {
-        ...r,
-        poolLow:  side === 'LOW'  ? r.poolLow  + amount : r.poolLow,
-        poolHigh: side === 'HIGH' ? r.poolHigh + amount : r.poolHigh,
-      };
-      roundRef.current = updated;
-      setRoundState(updated);
-
-      scheduleBet(); // chain next
-    }, delay);
-  };
-
-  useEffect(() => {
-    if (!round || round.phase !== 'BETTING') {
-      if (betTimerRef.current) clearTimeout(betTimerRef.current);
-      return;
+  // Get contract instance
+  const getContract = useCallback(() => {
+    if (!contractsDeployed) return null;
+    if (!contractRef.current) {
+      contractRef.current = getHashFlipContract();
     }
-    scheduleBet();
-    return () => { if (betTimerRef.current) clearTimeout(betTimerRef.current); };
-  }, [round?.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+    return contractRef.current;
+  }, []);
 
-  // ── Initialize on first block ─────────────────────────────────────
+  // Poll contract state for round data
+  const pollContractState = useCallback(async () => {
+    const contract = getContract();
+    if (!contract) return;
+
+    try {
+      const currentRoundResult = await contract._getCurrentRound();
+      if ('error' in currentRoundResult) return;
+
+      const roundId = currentRoundResult.properties.roundId;
+      if (roundId === 0n) return; // no rounds yet
+
+      const roundDataResult = await contract._getRound(roundId);
+      if ('error' in roundDataResult) return;
+
+      // Parse round data bytes:
+      // targetBlock(u64) | currentBlock(u64) | poolLow(u256) | poolHigh(u256) | phase(u8) | winner(u8) | hashByte(u8)
+      const data = roundDataResult.properties.data;
+      if (!data || data.length < 8) return;
+
+      const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+      const targetBlock = Number(view.getBigUint64(0, true));
+      const poolLowBig = data.slice(16, 48);
+      const poolHighBig = data.slice(48, 80);
+
+      // Read pool values as u64 from first 8 bytes of each u256 (little-endian)
+      const poolLow = Number(new DataView(poolLowBig.buffer, poolLowBig.byteOffset).getBigUint64(0, true));
+      const poolHigh = Number(new DataView(poolHighBig.buffer, poolHighBig.byteOffset).getBigUint64(0, true));
+
+      const phase = data[80];
+      const winner = data[81];
+      const hashByte = data[82];
+
+      const phaseMap: Record<number, Round['phase']> = { 0: 'BETTING', 1: 'AWAITING', 2: 'SETTLED' };
+
+      const contractRound: Round = {
+        id: Number(roundId),
+        targetBlock,
+        currentBlock: tip?.height ?? targetBlock,
+        poolLow,
+        poolHigh,
+        phase: phaseMap[phase] ?? 'BETTING',
+        winner: phase === 2 ? (winner === 0 ? 'LOW' : 'HIGH') : undefined,
+        hashByte: phase === 2 ? hashByte : undefined,
+      };
+
+      setRound(contractRound);
+    } catch (err) {
+      console.warn('Contract poll failed:', err);
+    }
+  }, [getContract, tip]);
+
+  // Initialize on first block
   useEffect(() => {
     if (!tip || initialized.current) return;
     initialized.current = true;
-    const [low, high] = rndPools();
-    setRound({
-      id: nextId.current,
-      targetBlock: tip.height + 1,
-      currentBlock: tip.height,
-      poolLow: low,
-      poolHigh: high,
-      phase: 'BETTING',
-    });
-    // Fetch real history from recent blocks
-    fetchRecentHistory(tip.height, 13).then(setHistory).catch(() => {});
-  }, [tip]);
 
-  // ── React to new blocks ───────────────────────────────────────────
+    if (contractsDeployed) {
+      pollContractState();
+    } else {
+      setRound({
+        id: nextId.current,
+        targetBlock: tip.height + 1,
+        currentBlock: tip.height,
+        poolLow: 0,
+        poolHigh: 0,
+        phase: 'BETTING',
+      });
+    }
+
+    fetchRecentHistory(tip.height, 13).then(setHistory).catch(() => {});
+  }, [tip, pollContractState]);
+
+  // Poll contract state on interval when deployed
   useEffect(() => {
-    if (!tip) return;
+    if (!contractsDeployed || !initialized.current) return;
+    const interval = setInterval(pollContractState, 10_000);
+    return () => clearInterval(interval);
+  }, [pollContractState]);
+
+  // React to new blocks (local mode)
+  useEffect(() => {
+    if (!tip || contractsDeployed) return;
     const r = roundRef.current;
     if (!r) return;
 
@@ -139,8 +160,7 @@ export function useHashFlipState() {
             : calcMulti(r.poolHigh, r.poolLow);
 
           const settled: Round = { ...r, phase: 'SETTLED', hashByte: lastByte, winner, currentBlock: tip.height };
-          roundRef.current = settled;
-          setRoundState(settled);
+          setRound(settled);
           setHistory(prev => [
             { roundId: r.id, winner, hashByte: lastByte, multiplier: multi },
             ...prev.slice(0, 18),
@@ -150,44 +170,88 @@ export function useHashFlipState() {
             isSettling.current = false;
             nextId.current += 1;
             const h = roundRef.current?.currentBlock ?? tip.height;
-            const [low, high] = rndPools();
-            const next: Round = { id: nextId.current, targetBlock: h + 1, currentBlock: h, poolLow: low, poolHigh: high, phase: 'BETTING' };
-            roundRef.current = next;
-            setRoundState(next);
+            setRound({
+              id: nextId.current,
+              targetBlock: h + 1,
+              currentBlock: h,
+              poolLow: 0,
+              poolHigh: 0,
+              phase: 'BETTING',
+            });
             setUserBet(null);
-            setRecentBets([]);
           }, 7000);
         })
         .catch(() => {
           isSettling.current = false;
-          roundRef.current = r;
-          setRoundState(r);
+          setRound(r);
         });
     }
   }, [tip]);
 
-  const placeBet = (side: Side, amountBtc: number) => {
+  // Re-poll on new block when contracts deployed
+  useEffect(() => {
+    if (!tip || !contractsDeployed) return;
+    pollContractState();
+  }, [tip, pollContractState]);
+
+  const placeBet = useCallback(async (side: Side, amountBtc: number) => {
     const r = roundRef.current;
     if (!r || r.phase !== 'BETTING' || userBet) return;
     const sats = Math.round(amountBtc * 100_000_000);
-    setUserBet({ side, amount: sats });
-    const bet: LiveBet = { id: Date.now(), side, amount: sats, ts: Date.now() };
-    setRecentBets(prev => [bet, ...prev.slice(0, 9)]);
-    const updated = {
-      ...r,
-      poolLow:  side === 'LOW'  ? r.poolLow  + sats : r.poolLow,
-      poolHigh: side === 'HIGH' ? r.poolHigh + sats : r.poolHigh,
-    };
-    roundRef.current = updated;
-    setRoundState(updated);
-  };
+
+    if (contractsDeployed) {
+      const contract = getContract();
+      if (!contract) return;
+
+      setTxPending(true);
+      try {
+        const sideNum = side === 'LOW' ? 0 : 1;
+        const simulation = await contract._bet(BigInt(r.id), sideNum, BigInt(sats));
+
+        if ('error' in simulation || simulation.revert) {
+          console.error('Bet simulation failed:', 'error' in simulation ? simulation.error : simulation.revert);
+          setTxPending(false);
+          return;
+        }
+
+        // Frontend: signer=null, mldsaSigner=null — wallet handles signing
+        const receipt = await simulation.sendTransaction({
+          signer: null,
+          mldsaSigner: null,
+          refundTo: '', // wallet handles
+          maximumAllowedSatToSpend: BigInt(sats + 50_000),
+          feeRate: 10,
+          network: OPNET_NETWORK,
+        });
+
+        console.log('Bet TX:', receipt.transactionId);
+        setUserBet({ side, amount: sats });
+
+        // Re-poll to get updated pools
+        await pollContractState();
+      } catch (err) {
+        console.error('Bet failed:', err);
+      } finally {
+        setTxPending(false);
+      }
+    } else {
+      // Local mode: immediate feedback
+      setUserBet({ side, amount: sats });
+      const updated = {
+        ...r,
+        poolLow: side === 'LOW' ? r.poolLow + sats : r.poolLow,
+        poolHigh: side === 'HIGH' ? r.poolHigh + sats : r.poolHigh,
+      };
+      setRound(updated);
+    }
+  }, [userBet, getContract, pollContractState]);
 
   return {
     round,
     history,
     userBet,
-    recentBets,
     placeBet,
+    txPending,
     lastBlockTimestamp: tip?.timestamp ?? null,
     blocksLoading,
     blocksError,

@@ -34,7 +34,7 @@ export function HashPotPage({ walletConnected, walletAddress, onConnect, onDisco
   const displaySlot = userBet ? userBet.slot : selectedSlot;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 960, margin: '0 auto', width: '100%' }}>
 
       {/* Title */}
       <div style={{ textAlign: 'center' }}>
@@ -56,15 +56,15 @@ export function HashPotPage({ walletConnected, walletAddress, onConnect, onDisco
       </div>
 
       {/* Timer (left, compact) + Bet/Wallet (right, expanded) — single control row */}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
+      <div className="pot-control-row" style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
         {/* Timer — 60% */}
-        <div style={{ flex: '0 0 60%', minWidth: 0 }}>
+        <div className="pot-timer-col" style={{ flex: '0 0 60%', minWidth: 0 }}>
           <PotTimer round={round} lastBlockTimestamp={lastBlockTimestamp} />
         </div>
 
         {/* Bet + Wallet — 35%, vertically centered */}
         <div
-          className="rounded-2xl border border-dark-border flex flex-col justify-center"
+          className="pot-bet-col rounded-2xl border border-dark-border flex flex-col justify-center"
           style={{ background: '#0c0c1e', padding: '14px 18px', flex: 1, minWidth: 0 }}
         >
           {(round?.phase === 'BETTING' || userBet) && (

@@ -52,7 +52,7 @@ export function HashFlipPage({ walletConnected, walletAddress, onConnect, onDisc
 
       {/* LOW / HIGH panels side by side */}
       {round && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 10 }}>
+        <div className="flip-panels-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 10 }}>
           <SidePanel side="LOW" pool={round.poolLow} otherPool={round.poolHigh} phase={round.phase} winner={round.winner} userBet={userBet} btcPrice={btcPrice} />
           <SidePanel side="HIGH" pool={round.poolHigh} otherPool={round.poolLow} phase={round.phase} winner={round.winner} userBet={userBet} btcPrice={btcPrice} />
         </div>
@@ -60,7 +60,7 @@ export function HashFlipPage({ walletConnected, walletAddress, onConnect, onDisc
 
       {/* Bet input + Wallet */}
       <div
-        className="rounded-xl border border-dark-border"
+        className="flip-bet-box rounded-xl border border-dark-border"
         style={{ background: '#0c0c1e', padding: '16px 28px', marginTop: 10 }}
       >
         {(round?.phase === 'BETTING' || userBet) && (

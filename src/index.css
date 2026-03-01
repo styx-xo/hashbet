@@ -320,3 +320,61 @@ body {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+.responsive-container {
+  width: 100%;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+@media (max-width: 768px) {
+  /* Landing game cards: 1 column */
+  .game-cards-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    max-width: 400px !important;
+    margin: 0 auto;
+  }
+  .game-card-padding { padding: 28px 20px 24px !important; }
+  .game-card-name { font-size: 1.6rem !important; }
+
+  /* Header */
+  .header-inner { padding: 10px 12px !important; }
+  .header-faq-btn { padding: 8px 12px !important; font-size: 0.8rem !important; }
+  .header-faq-label { display: none; }
+  .header-back-btn { width: 48px !important; height: 36px !important; }
+
+  /* HashFlip panels: stack */
+  .flip-panels-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
+  .flip-bet-box { padding: 12px 16px !important; }
+
+  /* HashSpin: stack wheel + controls */
+  .spin-layout { flex-direction: column !important; gap: 12px !important; }
+  .spin-wheel-col { width: 100% !important; flex: none !important; display: flex; justify-content: center; }
+  .spin-wheel-wrap { transform: scale(0.52); transform-origin: top center; margin-bottom: -200px; }
+  .spin-controls-col { width: 100% !important; }
+
+  /* HashPot: stack timer + bet */
+  .pot-control-row { flex-direction: column !important; gap: 8px !important; }
+  .pot-timer-col { flex: 1 1 auto !important; width: 100% !important; }
+  .pot-bet-col { flex: 1 1 auto !important; width: 100% !important; }
+
+  /* ByteSelector: smaller cells */
+  .byte-grid-row { gap: 2px !important; }
+  .byte-grid-row button span { font-size: 0.55rem !important; }
+  .byte-col-headers { gap: 2px !important; }
+  .byte-col-headers .font-mono { font-size: 0.5rem !important; }
+  .byte-row-label { width: 18px !important; font-size: 0.5rem !important; }
+
+  /* General page padding */
+  .page-content { padding: 10px 10px 16px !important; }
+
+  /* Pill badges */
+  .hero-pills span { font-size: 0.7rem !important; padding: 4px 12px !important; }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .spin-wheel-wrap { transform: scale(0.72); transform-origin: top center; margin-bottom: -120px; }
+}

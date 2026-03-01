@@ -17,7 +17,7 @@ export function Header({ isLanding, blockHeight, wsConnected, error, onFaq }: Pr
       style={{ background: 'rgba(6,6,15,0.94)', backdropFilter: 'blur(12px)' }}
     >
       <div
-        className="flex items-center justify-between"
+        className="header-inner flex items-center justify-between"
         style={{ maxWidth: 1200, margin: '0 auto', padding: '16px 20px' }}
       >
         {/* Logo + back arrow */}
@@ -27,8 +27,8 @@ export function Header({ isLanding, blockHeight, wsConnected, error, onFaq }: Pr
               to="/"
               className="flex items-center justify-center rounded-xl border transition-colors"
               style={{
-                width: 72,
-                height: 48,
+                width: 60,
+                height: 42,
                 borderColor: 'rgba(0,229,255,0.25)',
                 color: '#a0a8c8',
                 background: 'rgba(0,229,255,0.04)',
@@ -99,10 +99,10 @@ export function Header({ isLanding, blockHeight, wsConnected, error, onFaq }: Pr
         {/* FAQ button */}
         <button
           onClick={onFaq}
-          className="rounded-xl border flex items-center gap-2 font-display font-black tracking-widest transition-colors"
+          className="header-faq-btn rounded-xl border flex items-center gap-2 font-display font-black tracking-widest transition-colors"
           style={{
             padding: '10px 18px',
-            fontSize: '0.95rem',
+            fontSize: '0.85rem',
             borderColor: isLanding ? 'rgba(124,58,255,0.3)' : 'rgba(0,229,255,0.3)',
             color: '#c4ccee',
             background: isLanding ? 'rgba(124,58,255,0.05)' : 'rgba(0,229,255,0.05)',
@@ -118,7 +118,7 @@ export function Header({ isLanding, blockHeight, wsConnected, error, onFaq }: Pr
           }}
         >
           <HelpCircle size={16} />
-          HOW IT WORKS
+          <span className="header-faq-label">HOW IT WORKS</span>
         </button>
       </div>
     </header>

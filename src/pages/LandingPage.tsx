@@ -23,7 +23,7 @@ const games: {
     borderColor: 'rgba(0,229,255,0.3)',
     hoverBorder: 'rgba(0,229,255,0.6)',
     glowColor: 'rgba(0,229,255,0.15)',
-    icon: <LogoFlip size={180} />,
+    icon: <LogoFlip size={140} />,
   },
   {
     name: 'HASHSPIN',
@@ -33,7 +33,7 @@ const games: {
     borderColor: 'rgba(191,0,255,0.3)',
     hoverBorder: 'rgba(191,0,255,0.6)',
     glowColor: 'rgba(191,0,255,0.15)',
-    icon: <LogoSpin size={180} />,
+    icon: <LogoSpin size={140} />,
   },
   {
     name: 'HASHPOT',
@@ -43,7 +43,7 @@ const games: {
     borderColor: 'rgba(245,158,11,0.3)',
     hoverBorder: 'rgba(245,158,11,0.6)',
     glowColor: 'rgba(245,158,11,0.15)',
-    icon: <LogoPot size={180} />,
+    icon: <LogoPot size={140} />,
   },
 ];
 
@@ -134,7 +134,7 @@ export function LandingPage() {
 
         {/* Pill badges */}
         <motion.div
-          className="flex items-center justify-center gap-4 mt-7 flex-wrap"
+          className="hero-pills flex items-center justify-center gap-4 mt-7 flex-wrap"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
@@ -161,7 +161,7 @@ export function LandingPage() {
       </div>
 
       {/* ── Game cards ────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28, width: '100%', maxWidth: 1140, padding: '0 16px' }}>
+      <div className="game-cards-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28, width: '100%', maxWidth: 1140, padding: '0 16px' }}>
         {games.map((game, i) => (
           <motion.div
             key={game.name}
@@ -171,7 +171,7 @@ export function LandingPage() {
           >
             <Link to={game.path} style={{ textDecoration: 'none', display: 'block' }}>
               <motion.div
-                className="rounded-2xl border relative overflow-hidden"
+                className="game-card-padding rounded-2xl border relative overflow-hidden"
                 style={{
                   background: `linear-gradient(170deg, ${game.dimBg} 0%, #06060f 60%)`,
                   borderColor: game.borderColor,
@@ -207,7 +207,7 @@ export function LandingPage() {
 
                 {/* Game name */}
                 <div
-                  className="font-display font-black tracking-widest"
+                  className="game-card-name font-display font-black tracking-widest"
                   style={{
                     fontSize: '2.2rem',
                     lineHeight: 1,

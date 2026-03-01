@@ -48,7 +48,7 @@ export function ByteSelector({ selectedSlot, onSelectSlot, totalPool, userBetSlo
       </div>
 
       {/* Column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: '24px repeat(16, 1fr)', gap: 3, marginBottom: 3 }}>
+      <div className="byte-col-headers" style={{ display: 'grid', gridTemplateColumns: '24px repeat(16, 1fr)', gap: 3, marginBottom: 3 }}>
         <div />
         {NIB.map((label) => (
           <div
@@ -63,10 +63,10 @@ export function ByteSelector({ selectedSlot, onSelectSlot, totalPool, userBetSlo
 
       {/* 16×16 grid */}
       {Array.from({ length: 16 }).map((_, row) => (
-        <div key={row} style={{ display: 'grid', gridTemplateColumns: '24px repeat(16, 1fr)', gap: 3, marginBottom: 3 }}>
+        <div key={row} className="byte-grid-row" style={{ display: 'grid', gridTemplateColumns: '24px repeat(16, 1fr)', gap: 3, marginBottom: 3 }}>
           {/* Row label */}
           <div
-            className="font-mono font-bold flex items-center justify-center"
+            className="byte-row-label font-mono font-bold flex items-center justify-center"
             style={{ fontSize: '0.65rem', color: '#6872a0' }}
           >
             {NIB[row]}
