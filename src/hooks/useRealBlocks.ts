@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-
-const HTTP_API = 'https://mempool.space/api';
-const WS_URL   = 'wss://mempool.space/api/v1/ws';
+import { OPNET_RPC_URL } from '../lib/config';
 
 export interface BlockTip {
   height: number;
@@ -9,10 +7,25 @@ export interface BlockTip {
   timestamp: number; // unix seconds
 }
 
+async function rpc(method: string, params: unknown[] = []): Promise<unknown> {
+  const res = await fetch(OPNET_RPC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
+  });
+  const json = await res.json() as { result?: unknown; error?: unknown };
+  if (json.error) throw new Error(String(json.error));
+  return json.result;
+}
+
 export async function fetchBlockHash(height: number): Promise<string> {
-  const res = await fetch(`${HTTP_API}/block-height/${height}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.text();
+  const hex = '0x' + height.toString(16);
+  const block = await rpc('btc_getBlockByNumber', [hex, false]) as {
+    hash?: string;
+    id?: string;
+  } | null;
+  if (!block) throw new Error(`Block ${height} not found`);
+  return block.hash ?? block.id ?? '';
 }
 
 export function useRealBlocks() {
@@ -21,126 +34,52 @@ export function useRealBlocks() {
   const [error, setError] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
 
-  const wsRef        = useRef<WebSocket | null>(null);
-  const pollTimer    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mountedRef   = useRef(true);
+  const pollTimer  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true);
 
-  // ── HTTP fallback: fetch tip + timestamp ────────────────────────
   const fetchTip = useCallback(async () => {
     try {
-      const hRes   = await fetch(`${HTTP_API}/blocks/tip/height`);
-      const height: number = await hRes.json();
+      const heightHex = await rpc('btc_blockNumber') as string;
+      const height = parseInt(heightHex, 16);
 
-      const hashRes = await fetch(`${HTTP_API}/block-height/${height}`);
-      const hash    = await hashRes.text();
-
-      const bRes  = await fetch(`${HTTP_API}/block/${hash}`);
-      const block = await bRes.json() as { timestamp: number };
+      const block = await rpc('btc_getBlockByNumber', [heightHex, false]) as {
+        hash?: string;
+        id?: string;
+        timestamp?: string | number;
+      } | null;
 
       if (!mountedRef.current) return;
-      setTip({ height, hash, timestamp: block.timestamp });
+
+      const hash = block?.hash ?? block?.id ?? '';
+      const timestamp = typeof block?.timestamp === 'string'
+        ? parseInt(block.timestamp, 16)
+        : (block?.timestamp ?? Math.floor(Date.now() / 1000));
+
+      setTip({ height, hash, timestamp });
       setError(null);
+      setWsConnected(true); // indicate connection is live
     } catch {
-      if (mountedRef.current) setError('Cannot reach Bitcoin network');
+      if (mountedRef.current) {
+        setError('Cannot reach OPNet testnet');
+        setWsConnected(false);
+      }
     } finally {
       if (mountedRef.current) setLoading(false);
     }
   }, []);
 
-  // ── WebSocket connection ────────────────────────────────────────
-  const connectWs = useCallback(() => {
-    if (!mountedRef.current) return;
-
-    // Clean up any existing socket
-    if (wsRef.current) {
-      wsRef.current.onclose = null;
-      wsRef.current.close();
-    }
-
-    const ws = new WebSocket(WS_URL);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      if (!mountedRef.current) { ws.close(); return; }
-      // Subscribe to new block events
-      ws.send(JSON.stringify({ action: 'want', data: ['blocks'] }));
-      setWsConnected(true);
-      setError(null);
-      // Stop the HTTP fallback poll — WS has us covered
-      if (pollTimer.current) {
-        clearInterval(pollTimer.current);
-        pollTimer.current = null;
-      }
-    };
-
-    ws.onmessage = async (event: MessageEvent) => {
-      if (!mountedRef.current) return;
-      try {
-        const msg = JSON.parse(event.data as string) as {
-          block?: { id: string; height: number; timestamp: number };
-        };
-
-        if (msg.block) {
-          // New block arrived — instant update
-          setTip({
-            height:    msg.block.height,
-            hash:      msg.block.id,
-            timestamp: msg.block.timestamp,
-          });
-          setLoading(false);
-          setError(null);
-        }
-      } catch {
-        // Non-JSON or irrelevant message — ignore
-      }
-    };
-
-    ws.onerror = () => {
-      if (!mountedRef.current) return;
-      setWsConnected(false);
-    };
-
-    ws.onclose = () => {
-      if (!mountedRef.current) return;
-      setWsConnected(false);
-
-      // Fall back to HTTP polling while reconnecting
-      if (!pollTimer.current) {
-        pollTimer.current = setInterval(fetchTip, 15_000);
-      }
-
-      // Reconnect after 5s
-      reconnectRef.current = setTimeout(() => {
-        if (mountedRef.current) connectWs();
-      }, 5_000);
-    };
-  }, [fetchTip]);
-
-  // ── Mount / unmount ─────────────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
 
-    // Always do an initial HTTP fetch so we have data immediately
-    fetchTip().then(() => {
-      // Then open WebSocket for real-time updates
-      if (mountedRef.current) connectWs();
-    });
+    fetchTip();
+    pollTimer.current = setInterval(fetchTip, 10_000);
 
     return () => {
       mountedRef.current = false;
-
-      if (reconnectRef.current) clearTimeout(reconnectRef.current);
-      if (pollTimer.current)    clearInterval(pollTimer.current);
-
-      if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent reconnect loop on unmount
-        wsRef.current.close();
-      }
+      if (pollTimer.current) clearInterval(pollTimer.current);
     };
-  }, [fetchTip, connectWs]);
+  }, [fetchTip]);
 
-  // ── Derived: estimated seconds until next block ─────────────────
   const secondsUntilNextBlock = tip
     ? Math.max(0, 600 - Math.floor(Date.now() / 1000 - tip.timestamp))
     : null;

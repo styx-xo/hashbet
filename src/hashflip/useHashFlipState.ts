@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Round, HistoryEntry, Side } from './types';
 import { useRealBlocks, fetchBlockHash } from '../hooks/useRealBlocks';
 import { CONTRACT_ADDRESSES, OPNET_NETWORK } from '../lib/config';
-import { getHashFlipContract, fetchOpnetBlockHeight, type IHashFlipContract } from '../lib/contracts';
+import { getHashFlipContract, type IHashFlipContract } from '../lib/contracts';
 
 function calcMulti(myPool: number, theirPool: number): number {
   return myPool > 0 ? +(1 + (theirPool * 0.98) / myPool).toFixed(2) : 1;
@@ -33,7 +33,6 @@ export function useHashFlipState() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [userBet, setUserBet] = useState<{ side: Side; amount: number } | null>(null);
   const [txPending, setTxPending] = useState(false);
-  const [opnetTip, setOpnetTip] = useState<{ height: number; timestamp: number } | null>(null);
 
   const roundRef = useRef<Round | null>(null);
   const nextId = useRef(1);
@@ -61,10 +60,6 @@ export function useHashFlipState() {
     if (!contract) return;
 
     try {
-      // Fetch OPNet block height (same chain as contracts)
-      const opnetBlock = await fetchOpnetBlockHeight();
-      setOpnetTip(opnetBlock);
-
       const currentRoundResult = await contract._getCurrentRound();
       if (currentRoundResult.revert || !currentRoundResult.properties) return;
 
@@ -85,7 +80,7 @@ export function useHashFlipState() {
       const poolLow = Number(reader.readU256());
       const poolHigh = Number(reader.readU256());
 
-      const currentBlock = opnetBlock.height;
+      const currentBlock = tip?.height ?? targetBlock;
       const isSettled = settled;
       const phase: Round['phase'] = isSettled
         ? 'SETTLED'
@@ -106,7 +101,7 @@ export function useHashFlipState() {
     } catch (err) {
       console.warn('Contract poll failed:', err);
     }
-  }, [getContract]);
+  }, [getContract, tip]);
 
   // Initialize on first block
   useEffect(() => {
@@ -267,7 +262,7 @@ export function useHashFlipState() {
     userBet,
     placeBet,
     txPending,
-    lastBlockTimestamp: contractsDeployed ? (opnetTip?.timestamp ?? null) : (tip?.timestamp ?? null),
+    lastBlockTimestamp: tip?.timestamp ?? null,
     blocksLoading,
     blocksError,
     wsConnected,

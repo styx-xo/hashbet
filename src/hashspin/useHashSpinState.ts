@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { SpinRound, SpinHistoryEntry } from './types';
 import { useRealBlocks, fetchBlockHash } from '../hooks/useRealBlocks';
 import { CONTRACT_ADDRESSES, OPNET_NETWORK } from '../lib/config';
-import { getHashSpinContract, fetchOpnetBlockHeight, type IHashSpinContract } from '../lib/contracts';
+import { getHashSpinContract, type IHashSpinContract } from '../lib/contracts';
 
 function calcMulti(winnerPool: number, totalPool: number): number {
   if (winnerPool <= 0) return 1;
@@ -20,7 +20,6 @@ export function useHashSpinState() {
   const [history, setHistory] = useState<SpinHistoryEntry[]>([]);
   const [userBet, setUserBet] = useState<{ slot: number; amount: number } | null>(null);
   const [txPending, setTxPending] = useState(false);
-  const [opnetTip, setOpnetTip] = useState<{ height: number; timestamp: number } | null>(null);
 
   const roundRef = useRef<SpinRound | null>(null);
   const nextId = useRef(1);
@@ -47,10 +46,6 @@ export function useHashSpinState() {
     if (!contract) return;
 
     try {
-      // Fetch OPNet block height (same chain as contracts)
-      const opnetBlock = await fetchOpnetBlockHeight();
-      setOpnetTip(opnetBlock);
-
       const currentRoundResult = await contract._getCurrentRound();
       if (currentRoundResult.revert || !currentRoundResult.properties) return;
       const roundId = currentRoundResult.properties.roundId;
@@ -78,7 +73,7 @@ export function useHashSpinState() {
         }
       }
 
-      const currentBlock = opnetBlock.height;
+      const currentBlock = tip?.height ?? targetBlock;
       const phase: SpinRound['phase'] = isSettled
         ? 'SETTLED'
         : (currentBlock >= targetBlock ? 'SPINNING' : 'BETTING');
@@ -96,7 +91,7 @@ export function useHashSpinState() {
     } catch (err) {
       console.warn('HashSpin contract poll failed:', err);
     }
-  }, [getContract]);
+  }, [getContract, tip]);
 
   useEffect(() => {
     if (!tip || initialized.current) return;
@@ -244,7 +239,7 @@ export function useHashSpinState() {
     userBet,
     placeBet,
     txPending,
-    lastBlockTimestamp: contractsDeployed ? (opnetTip?.timestamp ?? null) : (tip?.timestamp ?? null),
+    lastBlockTimestamp: tip?.timestamp ?? null,
     blocksLoading,
     blocksError,
     wsConnected,
