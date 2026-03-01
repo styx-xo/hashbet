@@ -63,23 +63,24 @@ export function HashPotPage({ walletConnected, walletAddress, onConnect, onDisco
               onClick={() => setPickerOpen(true)}
               className="btn w-full"
               style={{
-                padding: '10px 16px',
-                fontSize: '0.8rem',
+                padding: '18px 24px',
+                fontSize: '1rem',
                 background: selectedSlot !== null
                   ? `linear-gradient(135deg, ${slotCol}22 0%, #0c0c1e 100%)`
                   : 'linear-gradient(135deg, rgba(245,158,11,0.08) 0%, #0c0c1e 100%)',
-                border: `1px solid ${selectedSlot !== null ? slotCol : 'rgba(245,158,11,0.3)'}`,
+                border: `1.5px solid ${selectedSlot !== null ? slotCol : 'rgba(245,158,11,0.4)'}`,
                 color: selectedSlot !== null ? slotCol : '#f59e0b',
+                boxShadow: selectedSlot !== null ? `0 0 16px ${slotCol}33` : '0 0 12px rgba(245,158,11,0.1)',
               }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
             >
               {selectedSlot !== null ? (
-                <span className="flex items-center gap-2">
-                  <span className="font-display font-black" style={{ fontSize: '1.1rem', color: slotCol }}>
+                <span className="flex items-center gap-3">
+                  <span className="font-display font-black" style={{ fontSize: '1.6rem', color: slotCol, textShadow: `0 0 10px ${slotCol}66` }}>
                     0x{BYTE_LABELS[selectedSlot]}
                   </span>
-                  <span className="font-display tracking-widest" style={{ color: '#a0a8c8', fontSize: '0.65rem' }}>
+                  <span className="font-display tracking-widest" style={{ color: '#a0a8c8', fontSize: '0.7rem' }}>
                     TAP TO CHANGE
                   </span>
                 </span>
